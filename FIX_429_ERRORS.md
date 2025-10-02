@@ -64,7 +64,8 @@ Or: F12 → Network tab → "Disable cache" checkbox
 ```
 
 ### 3. Test the Dashboard
-- Go to: http://localhost:3000
+- Go to: 
+http://localhost:3000
 - Dashboard should load without errors
 - Check browser console (F12) - no more 429 errors!
 

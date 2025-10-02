@@ -103,26 +103,14 @@ const authenticateApiKey = (req, res, next) => {
 };
 
 // Helmet security headers
-// Relaxed CSP for single-page app with inline handlers
-// Even more relaxed for HTTP development/local network access
+// VERY relaxed for HTTP local network access
 const securityHeaders = helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Allow inline scripts for frontend
-      imgSrc: ["'self'", "data:", "https:", "http:"],
-      connectSrc: ["'self'", "http:", "https:"],
-      fontSrc: ["'self'", "data:"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'"],
-      frameSrc: ["'none'"]
-    }
-  },
+  contentSecurityPolicy: false, // Disable CSP entirely for HTTP
   crossOriginEmbedderPolicy: false,
-  crossOriginOpenerPolicy: false, // Disable for HTTP
-  crossOriginResourcePolicy: { policy: "cross-origin" },
-  hsts: false // Disable HSTS for HTTP connections
+  crossOriginOpenerPolicy: false,
+  crossOriginResourcePolicy: false,
+  hsts: false, // No HTTPS enforcement
+  originAgentCluster: false // Disable origin-agent-cluster header
 });
 
 // CORS configuration
