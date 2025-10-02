@@ -31,14 +31,36 @@ const createRateLimiter = (options = {}) => {
   return rateLimit({ ...defaults, ...options });
 };
 
+// Helper function to check if IP is local/private network
+const isLocalNetwork = (ip) => {
+  // Remove IPv6 prefix if present
+  const cleanIp = ip.replace('::ffff:', '');
+  
+  // Localhost
+  if (cleanIp === '127.0.0.1' || cleanIp === '::1' || cleanIp === 'localhost') {
+    return true;
+  }
+  
+  // Private network ranges
+  // 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12
+  if (
+    /^192\.168\./.test(cleanIp) ||
+    /^10\./.test(cleanIp) ||
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(cleanIp)
+  ) {
+    return true;
+  }
+  
+  return false;
+};
+
 // API rate limiter (general)
 const apiLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100,
   skip: (req) => {
-    // Skip rate limiting for localhost (for development and local testing)
-    const isLocalhost = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
-    return isLocalhost; // Always skip for localhost
+    // Skip rate limiting for local network devices (development)
+    return isLocalNetwork(req.ip);
   }
 });
 
@@ -48,9 +70,8 @@ const strictLimiter = createRateLimiter({
   max: 10,
   message: 'Too many requests for this operation',
   skip: (req) => {
-    // Skip rate limiting for localhost
-    const isLocalhost = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
-    return isLocalhost; // Always skip for localhost
+    // Skip rate limiting for local network devices
+    return isLocalNetwork(req.ip);
   }
 });
 
@@ -60,9 +81,8 @@ const discoveryLimiter = createRateLimiter({
   max: 20, // Increased from 5 to allow more manual discovery runs
   message: 'Discovery can only be run 20 times per hour',
   skip: (req) => {
-    // Allow unlimited discovery runs from localhost
-    const isLocalhost = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
-    return isLocalhost; // Always skip for localhost
+    // Skip rate limiting for local network devices
+    return isLocalNetwork(req.ip);
   }
 });
 

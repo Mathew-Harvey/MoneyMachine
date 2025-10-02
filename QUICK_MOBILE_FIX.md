@@ -4,8 +4,9 @@
 
 1. ✅ Changed hardcoded `localhost:3005` to auto-detect your IP
 2. ✅ Server now accepts connections from mobile devices (binds to 0.0.0.0)
-3. ✅ Works on both desktop and mobile automatically
-4. ✅ Port 3005 configured correctly
+3. ✅ **Disabled rate limiting for local network devices** (192.168.x.x)
+4. ✅ Works on both desktop and mobile automatically
+5. ✅ Port 3005 configured correctly
 
 ## Quick Steps to Use
 
