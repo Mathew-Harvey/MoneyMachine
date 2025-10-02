@@ -1,0 +1,126 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+data/*.db
+data/*.sqlite
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Testing
+coverage/
+*.lcov
+.nyc_output
+.grunt
+lib-cov
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+tmp/
+temp/
+
+# Build outputs
+dist/
+build/
+out/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# API Keys and Secrets (just in case)
+**/apikeys.txt
+**/secrets.txt
+credentials.json
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# System Files
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Project specific
+# Uncomment these if you want to ignore certain files:
+# API_KEYS_CONFIGURED.md
+# CHANGELOG_RATE_LIMITS.md
+# DISCOVERY_FIXED.md
+# ETHERSCAN_V2_SETUP.md
+# FILES_CREATED.md
+# IMPLEMENTATION_SUMMARY.md
+# PRODUCTION_CHANGES.md
+# PRODUCTION_GUIDE.md
+# PROJECT_SUMMARY.md
+# QUICKSTART.md
+# RATE_LIMITS.md
+# RATE_LIMIT_FIX.md
+# FIX_429_ERRORS.md
+# SCALING_WALLETS.md

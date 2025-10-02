@@ -1,0 +1,4 @@
+# This directory will contain the SQLite database
+# It's created automatically when you run: npm run init-db
+
+

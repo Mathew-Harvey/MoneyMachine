@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoneyMaker - Multi-Chain Trading Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="brand">
+                    <h1>💰 MoneyMaker</h1>
+                    <p class="tagline">Automated Paper Trading System</p>
+                </div>
+                <div class="header-actions">
+                    <button class="help-button" id="help-button" title="Click for help understanding this dashboard">
+                        ❓ Help
+                    </button>
+                    <div class="status-indicator">
+                        <div class="pulse-dot"></div>
+                        <span>System Active</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Dashboard -->
+        <div class="dashboard-grid">
+            
+            <!-- Left Column: Key Metrics -->
+            <div class="left-column">
+                
+                <!-- Portfolio Value Card -->
+                <div class="card portfolio-card">
+                    <div class="card-header">
+                        <h2>💵 Your Money</h2>
+                        <span class="help-icon" title="This is simulated money - not real!">ℹ️</span>
+                    </div>
+                    <div class="portfolio-value">
+                        <div class="value-main" id="total-value">$10,000.00</div>
+                        <div class="value-change" id="total-change">
+                            <span class="change-amount">+$0.00</span>
+                            <span class="change-percent">(0%)</span>
+                        </div>
+                    </div>
+                    <div class="portfolio-breakdown">
+                        <div class="breakdown-item">
+                            <span class="breakdown-label">Started with:</span>
+                            <span class="breakdown-value">$10,000</span>
+                        </div>
+                        <div class="breakdown-item">
+                            <span class="breakdown-label">Currently invested:</span>
+                            <span class="breakdown-value" id="invested-amount">$0</span>
+                        </div>
+                        <div class="breakdown-item">
+                            <span class="breakdown-label">Available cash:</span>
+                            <span class="breakdown-value" id="available-cash">$10,000</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- How It Works Card -->
+                <div class="card how-it-works">
+                    <div class="card-header">
+                        <h2>🤖 How This Works</h2>
+                    </div>
+                    <div class="steps">
+                        <div class="step">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <h4>We Watch Smart Traders</h4>
+                                <p>Tracking <strong id="wallet-count">30</strong> successful crypto wallets</p>
+                            </div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <h4>They Make a Trade</h4>
+                                <p>When they buy or sell, we notice it</p>
+                            </div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <h4>We Copy (Pretend)</h4>
+                                <p>Simulate the same trade with fake money</p>
+                            </div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">4</div>
+                            <div class="step-content">
+                                <h4>Track Results</h4>
+                                <p>See if copying them would be profitable</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Win Rate Card -->
+                <div class="card stats-card">
+                    <div class="card-header">
+                        <h2>📊 Success Rate</h2>
+                    </div>
+                    <div class="win-rate-visual">
+                        <svg class="donut-chart" viewBox="0 0 42 42">
+                            <circle class="donut-hole" cx="21" cy="21" r="15.91549430918954" fill="#1a1a2e"></circle>
+                            <circle class="donut-ring" cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#2d2d44" stroke-width="3"></circle>
+                            <circle id="donut-segment" class="donut-segment" cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#4ade80" stroke-width="3" stroke-dasharray="0 100" stroke-dashoffset="25"></circle>
+                        </svg>
+                        <div class="donut-center">
+                            <div class="donut-percent" id="win-rate-display">0%</div>
+                            <div class="donut-label">Wins</div>
+                        </div>
+                    </div>
+                    <div class="win-loss-counts">
+                        <div class="count-item win">
+                            <span class="count-number" id="wins-count">0</span>
+                            <span class="count-label">Winning Trades</span>
+                        </div>
+                        <div class="count-item loss">
+                            <span class="count-number" id="losses-count">0</span>
+                            <span class="count-label">Losing Trades</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Center Column: Activity & Positions -->
+            <div class="center-column">
+                
+                <!-- Live Activity Feed -->
+                <div class="card activity-feed-card">
+                    <div class="card-header">
+                        <h2>📡 What's Happening Now</h2>
+                        <span class="live-badge">LIVE</span>
+                    </div>
+                    <div class="activity-feed" id="activity-feed">
+                        <div class="activity-item welcome">
+                            <div class="activity-icon">👋</div>
+                            <div class="activity-content">
+                                <div class="activity-title">Welcome to MoneyMaker!</div>
+                                <div class="activity-description">System is watching wallets and will start copying trades...</div>
+                                <div class="activity-time">Just now</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Open Positions -->
+                <div class="card positions-card">
+                    <div class="card-header">
+                        <h2>📈 Active Investments</h2>
+                        <span class="position-count" id="position-count">0 open</span>
+                    </div>
+                    <div class="positions-grid" id="positions-grid">
+                        <div class="empty-state">
+                            <div class="empty-icon">💤</div>
+                            <h3>No Active Trades Yet</h3>
+                            <p>Waiting for smart traders to make moves...</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Column: Strategies & Performance -->
+            <div class="right-column">
+                
+                <!-- Strategy Allocation -->
+                <div class="card strategies-card">
+                    <div class="card-header">
+                        <h2>🎯 Trading Strategies</h2>
+                    </div>
+                    <div class="strategies-list">
+                        
+                        <div class="strategy-item">
+                            <div class="strategy-header">
+                                <div class="strategy-info">
+                                    <span class="strategy-icon">🏦</span>
+                                    <div>
+                                        <h4>Safe & Steady</h4>
+                                        <p class="strategy-desc">Low risk arbitrage trades</p>
+                                    </div>
+                                </div>
+                                <div class="strategy-allocation">$4,000</div>
+                            </div>
+                            <div class="strategy-progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 40%" data-strategy="arbitrage"></div>
+                                </div>
+                                <div class="strategy-stats">
+                                    <span id="arb-trades" class="stat-small">0 trades</span>
+                                    <span id="arb-pnl" class="stat-small">$0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="strategy-item">
+                            <div class="strategy-header">
+                                <div class="strategy-info">
+                                    <span class="strategy-icon">🚀</span>
+                                    <div>
+                                        <h4>High Risk Memecoins</h4>
+                                        <p class="strategy-desc">Big wins, big risks</p>
+                                    </div>
+                                </div>
+                                <div class="strategy-allocation">$3,000</div>
+                            </div>
+                            <div class="strategy-progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 30%" data-strategy="memecoin"></div>
+                                </div>
+                                <div class="strategy-stats">
+                                    <span id="meme-trades" class="stat-small">0 trades</span>
+                                    <span id="meme-pnl" class="stat-small">$0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="strategy-item">
+                            <div class="strategy-header">
+                                <div class="strategy-info">
+                                    <span class="strategy-icon">💎</span>
+                                    <div>
+                                        <h4>Early Gems</h4>
+                                        <p class="strategy-desc">New tokens before they pump</p>
+                                    </div>
+                                </div>
+                                <div class="strategy-allocation">$2,000</div>
+                            </div>
+                            <div class="strategy-progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 20%" data-strategy="earlyGem"></div>
+                                </div>
+                                <div class="strategy-stats">
+                                    <span id="gem-trades" class="stat-small">0 trades</span>
+                                    <span id="gem-pnl" class="stat-small">$0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="strategy-item">
+                            <div class="strategy-header">
+                                <div class="strategy-info">
+                                    <span class="strategy-icon">🔍</span>
+                                    <div>
+                                        <h4>New Discoveries</h4>
+                                        <p class="strategy-desc">Testing new smart traders</p>
+                                    </div>
+                                </div>
+                                <div class="strategy-allocation">$1,000</div>
+                            </div>
+                            <div class="strategy-progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 10%" data-strategy="discovery"></div>
+                                </div>
+                                <div class="strategy-stats">
+                                    <span id="disc-trades" class="stat-small">0 trades</span>
+                                    <span id="disc-pnl" class="stat-small">$0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Recent Wins/Losses -->
+                <div class="card recent-trades-card">
+                    <div class="card-header">
+                        <h2>💰 Latest Results</h2>
+                    </div>
+                    <div class="recent-trades-list" id="recent-trades-list">
+                        <div class="empty-state-small">
+                            <p>No completed trades yet</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top Performers -->
+                <div class="card top-wallets-card">
+                    <div class="card-header">
+                        <h2>⭐ Best Traders We're Copying</h2>
+                    </div>
+                    <div class="top-wallets-list" id="top-wallets-list">
+                        <div class="empty-state-small">
+                            <p>Analyzing trader performance...</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Bottom Section: Detailed Tables (Collapsible) -->
+        <div class="details-section">
+            <button class="details-toggle" id="details-toggle">
+                <span>📋 View Detailed Tables</span>
+                <span class="toggle-icon">▼</span>
+            </button>
+            
+            <div class="details-content" id="details-content" style="display: none;">
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="all-trades">All Trades</button>
+                    <button class="tab-btn" data-tab="all-wallets">All Wallets</button>
+                    <button class="tab-btn" data-tab="discovered">Discovered Wallets</button>
+                </div>
+
+                <!-- All Trades Tab -->
+                <div class="tab-panel active" id="all-trades-panel">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Token</th>
+                                <th>Strategy</th>
+                                <th>Entry Price</th>
+                                <th>Exit Price</th>
+                                <th>Result</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="all-trades-table"></tbody>
+                    </table>
+                </div>
+
+                <!-- All Wallets Tab -->
+                <div class="tab-panel" id="all-wallets-panel">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Address</th>
+                                <th>Type</th>
+                                <th>Chain</th>
+                                <th>Win Rate</th>
+                                <th>Profit</th>
+                                <th>Trades</th>
+                            </tr>
+                        </thead>
+                        <tbody id="all-wallets-table"></tbody>
+                    </table>
+                </div>
+
+                <!-- Discovered Wallets Tab -->
+                <div class="tab-panel" id="discovered-panel">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Address</th>
+                                <th>Chain</th>
+                                <th>Score</th>
+                                <th>Win Rate</th>
+                                <th>Found</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="discovered-table"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div class="toast-container" id="toast-container"></div>
+
+        <!-- Help Modal -->
+        <div class="modal-overlay" id="help-modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>💡 Understanding MoneyMaker</h2>
+                    <button class="modal-close" id="close-help">✕</button>
+                </div>
+                <div class="modal-body">
+                    
+                    <div class="help-section">
+                        <h3>🤔 What is This?</h3>
+                        <p><strong>MoneyMaker is a practice trading system.</strong> It watches successful crypto traders and copies their moves with <strong>fake money</strong>. You can see if copying them would make you money - without any risk!</p>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>💵 The Big Number (Your Money)</h3>
+                        <p>You start with <strong>$10,000 fake money</strong>.</p>
+                        <ul>
+                            <li>🟢 <strong>Green number?</strong> You're making profit!</li>
+                            <li>🔴 <strong>Red number?</strong> You're losing money</li>
+                            <li>If it shows <strong>$10,500</strong> → You made $500!</li>
+                            <li>If it shows <strong>$9,800</strong> → You lost $200</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>📡 What's Happening Now</h3>
+                        <p>This is like a <strong>live news feed</strong> showing what the system is doing:</p>
+                        <ul>
+                            <li>🟢 <strong>Green dot:</strong> Someone bought something</li>
+                            <li>🔴 <strong>Red dot:</strong> Someone sold something</li>
+                            <li>✅ <strong>Check mark:</strong> We made money!</li>
+                            <li>❌ <strong>X mark:</strong> We lost money</li>
+                            <li>📊 <strong>Chart:</strong> We're currently holding an investment</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>📈 Active Investments</h3>
+                        <p>Shows what we're <strong>currently holding</strong> (haven't sold yet):</p>
+                        <ul>
+                            <li><strong>Token name:</strong> What cryptocurrency</li>
+                            <li><strong>Green +$100:</strong> This investment is up $100!</li>
+                            <li><strong>Red -$50:</strong> This investment is down $50</li>
+                            <li><strong>Invested:</strong> How much fake money we put in</li>
+                            <li><strong>Entry vs Current:</strong> What price we bought at vs now</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>🎯 Trading Strategies</h3>
+                        <p>We use <strong>4 different approaches</strong>:</p>
+                        <ul>
+                            <li>🏦 <strong>Safe & Steady ($4,000):</strong> Low risk, slow gains. Like a savings account.</li>
+                            <li>🚀 <strong>High Risk ($3,000):</strong> Can make 10x but can lose big. Like lottery tickets.</li>
+                            <li>💎 <strong>Early Gems ($2,000):</strong> Buy new things before they get popular.</li>
+                            <li>🔍 <strong>New Discoveries ($1,000):</strong> Testing new traders we found.</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>📊 Success Rate Circle</h3>
+                        <p>The big colored circle shows your win rate:</p>
+                        <ul>
+                            <li><strong>75%:</strong> Super! 75 out of 100 trades won</li>
+                            <li><strong>50%:</strong> Okay - winning half the time</li>
+                            <li><strong>25%:</strong> Not good - losing most trades</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>💰 Latest Results</h3>
+                        <p>Shows recently <strong>completed</strong> trades:</p>
+                        <ul>
+                            <li>Green border ✅ = Made money</li>
+                            <li>Red border ❌ = Lost money</li>
+                            <li>Shows the token name and profit/loss</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>❓ Common Questions</h3>
+                        <p><strong>Q: Is this real money?</strong><br>
+                        A: NO! It's 100% fake. You can't lose real money.</p>
+                        
+                        <p><strong>Q: Can I cash out?</strong><br>
+                        A: No, because it's pretend money. This is for learning/practice.</p>
+                        
+                        <p><strong>Q: Why is nothing happening?</strong><br>
+                        A: The traders we watch don't trade 24/7. Be patient!</p>
+                        
+                        <p><strong>Q: Am I winning if I see $10,200?</strong><br>
+                        A: YES! You made $200 fake profit. Started at $10,000!</p>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>🎯 What Should I Watch?</h3>
+                        <ol>
+                            <li><strong>The big number (top-left):</strong> Going up? Good! Going down? Not good.</li>
+                            <li><strong>"What's Happening Now" feed:</strong> Shows everything as it happens</li>
+                            <li><strong>Success Rate circle:</strong> Above 50% is good!</li>
+                            <li><strong>Latest Results:</strong> Are we seeing more ✅ or ❌?</li>
+                        </ol>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>
