@@ -1,6 +1,6 @@
 // MoneyMaker Dashboard - Simple & Intuitive
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = 'http://localhost:3005/api';
 
 // State
 let dashboardData = null;
