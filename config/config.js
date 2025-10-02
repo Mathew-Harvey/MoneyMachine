@@ -3,8 +3,8 @@
 module.exports = {
   // Server configuration
   server: {
-    port: process.env.PORT || 3000,
-    host: process.env.HOST || 'localhost'
+    port: process.env.PORT || 3005,
+    host: process.env.HOST || '0.0.0.0'  // Bind to all interfaces to allow mobile access
   },
 
   // Database configuration

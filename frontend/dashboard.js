@@ -1,6 +1,9 @@
 // MoneyMaker Dashboard - Simple & Intuitive
 
-const API_BASE = 'http://localhost:3005/api';
+// Auto-detect API base URL - works on both desktop and mobile
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:3005/api'  // Desktop development
+  : `http://${window.location.hostname}:3005/api`;  // Mobile on same network
 
 // State
 let dashboardData = null;
