@@ -104,14 +104,15 @@ const authenticateApiKey = (req, res, next) => {
 
 // Helmet security headers
 // Relaxed CSP for single-page app with inline handlers
+// Even more relaxed for HTTP development/local network access
 const securityHeaders = helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Allow inline scripts for frontend
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:", "http:"],
+      connectSrc: ["'self'", "http:", "https:"],
       fontSrc: ["'self'", "data:"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
@@ -119,7 +120,9 @@ const securityHeaders = helmet({
     }
   },
   crossOriginEmbedderPolicy: false,
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  crossOriginOpenerPolicy: false, // Disable for HTTP
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  hsts: false // Disable HSTS for HTTP connections
 });
 
 // CORS configuration
@@ -129,11 +132,17 @@ const corsOptions = {
       ? process.env.CORS_ORIGIN.split(',')
       : ['*'];
 
+    // Always allow requests without origin (like direct browser access)
     if (allowedOrigins.includes('*') || !origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      logger.warn('CORS blocked origin', { origin });
-      callback(new Error('Not allowed by CORS'));
+      // Allow local network IPs (192.168.x.x)
+      if (origin && origin.match(/^http:\/\/192\.168\.\d{1,3}\.\d{1,3}:\d+$/)) {
+        callback(null, true);
+      } else {
+        logger.warn('CORS blocked origin', { origin });
+        callback(new Error('Not allowed by CORS'));
+      }
     }
   },
   credentials: true,
