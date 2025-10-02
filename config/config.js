@@ -40,12 +40,24 @@ module.exports = {
 
   // API Keys (optional - add your own for better rate limits)
   apiKeys: {
-    etherscan: process.env.ETHERSCAN_API_KEY || '',
-    solscan: process.env.SOLSCAN_API_KEY || '',
-    basescan: process.env.BASESCAN_API_KEY || '',
-    arbiscan: process.env.ARBISCAN_API_KEY || '',
-    helius: process.env.HELIUS_API_KEY || '', // For Solana
-    alchemy: process.env.ALCHEMY_API_KEY || ''
+    // Blockchain Explorers
+    etherscan: process.env.ETHERSCAN_API_KEY || '',     // Unified API for all EVM chains
+    solscan: process.env.SOLSCAN_API_KEY || '',         // Solana explorer
+    basescan: process.env.BASESCAN_API_KEY || '',       // Legacy (use etherscan instead)
+    arbiscan: process.env.ARBISCAN_API_KEY || '',       // Legacy (use etherscan instead)
+    
+    // RPC Providers
+    helius: process.env.HELIUS_API_KEY || '',           // Solana RPC
+    alchemy: process.env.ALCHEMY_API_KEY || '',         // Multi-chain RPC
+    quicknode: process.env.QUICKNODE_API_KEY || '',     // Multi-chain RPC
+    
+    // Price Oracles
+    coingecko: process.env.COINGECKO_API_KEY || '',     // Token price data
+    coinmarketcap: process.env.COINMARKETCAP_API_KEY || '', // Token price data
+    
+    // Authentication & Security
+    apiKey: process.env.API_KEY || '',                  // Dashboard API auth
+    jwtSecret: process.env.JWT_SECRET || 'change-this-in-production'
   },
 
   // Strategy parameters

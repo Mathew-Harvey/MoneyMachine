@@ -1195,6 +1195,274 @@ code, .address {
     font-size: 0.9em;
 }
 
+/* Wallet Count Link */
+.wallet-count-link {
+    color: var(--green);
+    cursor: pointer;
+    text-decoration: none;
+    border-bottom: 2px dashed var(--green);
+    transition: all 0.3s ease;
+    padding: 2px 4px;
+}
+
+.wallet-count-link:hover {
+    background: rgba(74, 222, 128, 0.2);
+    border-bottom-style: solid;
+    transform: scale(1.05);
+}
+
+/* Modal Large */
+.modal-large {
+    max-width: 1200px;
+    width: 95%;
+}
+
+/* Wallets Grid */
+.wallets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.wallet-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.wallet-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-5px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    border-color: var(--accent-blue);
+}
+
+.wallet-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.wallet-card-address {
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    color: var(--accent-blue);
+    font-weight: 600;
+}
+
+.wallet-card-chain {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.wallet-card-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
+.wallet-stat {
+    text-align: center;
+}
+
+.wallet-stat-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+}
+
+.wallet-stat-value {
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.wallet-stat-value.positive {
+    color: var(--green);
+}
+
+.wallet-stat-value.negative {
+    color: var(--red);
+}
+
+.wallet-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.wallet-strategy-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: rgba(139, 92, 246, 0.2);
+    color: #a78bfa;
+}
+
+/* Wallet Performance Modal */
+.wallet-address-title {
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-top: 5px;
+}
+
+.wallet-stats-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+}
+
+.summary-stat {
+    text-align: center;
+}
+
+.summary-stat-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.summary-stat-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.summary-stat-value.positive {
+    color: var(--green);
+}
+
+.summary-stat-value.negative {
+    color: var(--red);
+}
+
+.summary-stat-value.neutral {
+    color: var(--text-primary);
+}
+
+/* Chart Container */
+.chart-container {
+    position: relative;
+    height: 400px;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+}
+
+/* Wallet Trades List */
+.wallet-trades-list h3 {
+    font-size: 1.3rem;
+    margin-bottom: 15px;
+    color: var(--text-primary);
+}
+
+.wallet-trade-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    border-left: 3px solid var(--border-color);
+    transition: all 0.2s ease;
+}
+
+.wallet-trade-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    transform: translateX(5px);
+}
+
+.wallet-trade-item.profit {
+    border-left-color: var(--green);
+}
+
+.wallet-trade-item.loss {
+    border-left-color: var(--red);
+}
+
+.wallet-trade-item.open {
+    border-left-color: var(--accent-blue);
+}
+
+.wallet-trade-left {
+    flex: 1;
+}
+
+.wallet-trade-token {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.wallet-trade-details {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.wallet-trade-right {
+    text-align: right;
+}
+
+.wallet-trade-pnl {
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 3px;
+}
+
+.wallet-trade-pnl.positive {
+    color: var(--green);
+}
+
+.wallet-trade-pnl.negative {
+    color: var(--red);
+}
+
+.wallet-trade-status {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+.wallet-trade-status.open {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+}
+
+.wallet-trade-status.closed {
+    background: rgba(107, 114, 128, 0.2);
+    color: #9ca3af;
+}
+
+/* Loading Spinner */
+.loading-spinner {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+}
+
 /* Welcome message */
 .activity-item.welcome {
     border-left-color: var(--accent-purple);
