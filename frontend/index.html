@@ -311,6 +311,7 @@
                     <button class="tab-btn active" data-tab="all-trades">All Trades</button>
                     <button class="tab-btn" data-tab="all-wallets">All Wallets</button>
                     <button class="tab-btn" data-tab="discovered">Discovered Wallets</button>
+                    <button class="tab-btn" data-tab="system-status">🔧 System Status</button>
                 </div>
 
                 <!-- All Trades Tab -->
@@ -364,6 +365,64 @@
                         <tbody id="discovered-table"></tbody>
                     </table>
                 </div>
+
+                <!-- System Status Tab -->
+                <div class="tab-panel" id="system-status-panel">
+                    <div class="system-status-grid">
+                        
+                        <!-- Component Health -->
+                        <div class="status-card">
+                            <h3>🏥 Component Health</h3>
+                            <div class="component-list" id="component-health">
+                                <div class="loading-spinner">Loading status...</div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Activity Log -->
+                        <div class="status-card log-card">
+                            <h3>📋 Recent System Logs</h3>
+                            <div class="log-viewer" id="system-logs">
+                                <div class="loading-spinner">Loading logs...</div>
+                            </div>
+                        </div>
+
+                        <!-- API Status -->
+                        <div class="status-card">
+                            <h3>🌐 API Connections</h3>
+                            <div class="api-status-list" id="api-status">
+                                <div class="loading-spinner">Checking APIs...</div>
+                            </div>
+                        </div>
+
+                        <!-- System Metrics -->
+                        <div class="status-card">
+                            <h3>📊 System Metrics</h3>
+                            <div class="metrics-list" id="system-metrics">
+                                <div class="loading-spinner">Loading metrics...</div>
+                            </div>
+                        </div>
+
+                        <!-- Last Execution Times -->
+                        <div class="status-card">
+                            <h3>⏰ Background Jobs</h3>
+                            <div class="jobs-list" id="background-jobs">
+                                <div class="loading-spinner">Checking jobs...</div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="status-card">
+                            <h3>⚡ Quick Actions</h3>
+                            <div class="quick-actions">
+                                <button class="action-btn" id="refresh-status-btn">🔄 Refresh Status</button>
+                                <button class="action-btn" id="clear-logs-btn">🗑️ Clear Logs</button>
+                                <button class="action-btn secondary" id="export-logs-btn">📥 Export Logs</button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
             </div>
         </div>
 

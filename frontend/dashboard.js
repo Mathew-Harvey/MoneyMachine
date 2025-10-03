@@ -64,6 +64,11 @@ function setupEventListeners() {
             promoteWallet(address);
         }
     });
+    
+    // System status actions
+    document.getElementById('refresh-status-btn')?.addEventListener('click', refreshSystemStatus);
+    document.getElementById('clear-logs-btn')?.addEventListener('click', clearSystemLogs);
+    document.getElementById('export-logs-btn')?.addEventListener('click', exportSystemLogs);
 }
 
 // Help modal functions
@@ -93,6 +98,12 @@ async function loadDashboardData() {
         };
 
         updateUI();
+        
+        // Also update system status if that tab is visible
+        const statusPanel = document.getElementById('system-status-panel');
+        if (statusPanel && statusPanel.classList.contains('active')) {
+            await loadSystemStatus();
+        }
     } catch (error) {
         console.error('Error loading data:', error);
         showToast('Connection issue - retrying...', 'error');
@@ -502,6 +513,11 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-panel').forEach(panel => {
         panel.classList.toggle('active', panel.id === `${tabName}-panel`);
     });
+    
+    // Load system status when switching to that tab
+    if (tabName === 'system-status') {
+        loadSystemStatus();
+    }
 }
 
 // Promote discovered wallet
@@ -1003,4 +1019,263 @@ function displayWalletTrades(trades) {
         
         container.appendChild(tradeItem);
     });
+}
+
+// ========== SYSTEM STATUS FUNCTIONS ==========
+
+// Load system status
+async function loadSystemStatus() {
+    try {
+        const response = await fetch(`${API_BASE}/system/status`);
+        const status = await response.json();
+        
+        renderComponentHealth(status.components);
+        renderSystemMetrics(status);
+        renderAPIStatus(status.apiStatus);
+        renderBackgroundJobs(status.jobs);
+        renderSystemLogs(status);
+        
+    } catch (error) {
+        console.error('Error loading system status:', error);
+        document.getElementById('component-health').innerHTML = 
+            `<div class="error-message">Failed to load system status</div>`;
+    }
+}
+
+// Render component health
+function renderComponentHealth(components) {
+    const container = document.getElementById('component-health');
+    
+    const html = `
+        <div class="component-item ${components.database.status === 'operational' ? 'healthy' : 'error'}">
+            <div class="component-indicator"></div>
+            <div class="component-info">
+                <div class="component-name">Database</div>
+                <div class="component-status">${components.database.status}</div>
+            </div>
+        </div>
+        
+        <div class="component-item ${components.universalTracker.status === 'operational' ? 'healthy' : 'error'}">
+            <div class="component-indicator"></div>
+            <div class="component-info">
+                <div class="component-name">Universal Tracker</div>
+                <div class="component-status">
+                    ${components.universalTracker.status}
+                    ${components.universalTracker.isTracking ? ' (tracking now...)' : ''}
+                </div>
+                <div class="component-detail">Last: ${formatTimeAgo(components.universalTracker.lastActivity)}</div>
+            </div>
+        </div>
+        
+        <div class="component-item ${components.paperTradingEngine.status === 'operational' ? 'healthy' : 'error'}">
+            <div class="component-indicator"></div>
+            <div class="component-info">
+                <div class="component-name">Paper Trading Engine</div>
+                <div class="component-status">${components.paperTradingEngine.status}</div>
+                <div class="component-detail">
+                    ${components.paperTradingEngine.processedCount} transactions processed
+                    ${components.paperTradingEngine.lastActivity !== 'Never' ? 
+                        `• Last: ${formatTimeAgo(components.paperTradingEngine.lastActivity)}` : ''}
+                </div>
+            </div>
+        </div>
+        
+        <div class="component-item ${components.walletDiscovery.status === 'operational' ? 'healthy' : 'error'}">
+            <div class="component-indicator"></div>
+            <div class="component-info">
+                <div class="component-name">Wallet Discovery</div>
+                <div class="component-status">${components.walletDiscovery.status}</div>
+                <div class="component-detail">
+                    ${components.walletDiscovery.dailyCount} discovered today
+                    ${components.walletDiscovery.lastRun !== 'Never' ? 
+                        `• Last: ${formatTimeAgo(components.walletDiscovery.lastRun)}` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+// Render system metrics
+function renderSystemMetrics(status) {
+    const container = document.getElementById('system-metrics');
+    
+    const uptimeHours = Math.floor(status.uptime / 3600);
+    const uptimeMinutes = Math.floor((status.uptime % 3600) / 60);
+    const uptimeDisplay = uptimeHours > 0 
+        ? `${uptimeHours}h ${uptimeMinutes}m`
+        : `${uptimeMinutes}m`;
+    
+    const memoryPercent = Math.round((status.memory.used / status.memory.total) * 100);
+    
+    const html = `
+        <div class="metric-item">
+            <div class="metric-label">Uptime</div>
+            <div class="metric-value">${uptimeDisplay}</div>
+        </div>
+        <div class="metric-item">
+            <div class="metric-label">Memory Usage</div>
+            <div class="metric-value">${status.memory.used} MB / ${status.memory.total} MB</div>
+            <div class="metric-bar">
+                <div class="metric-bar-fill ${memoryPercent > 80 ? 'warning' : ''}" 
+                     style="width: ${memoryPercent}%"></div>
+            </div>
+        </div>
+        <div class="metric-item">
+            <div class="metric-label">Recent Activity (Last Hour)</div>
+            <div class="metric-value">
+                ${status.recentActivity.transactionsLastHour} transactions • 
+                ${status.recentActivity.tradesLastHour} trades
+            </div>
+        </div>
+        <div class="metric-item">
+            <div class="metric-label">Last Updated</div>
+            <div class="metric-value">${formatTimeAgo(status.timestamp)}</div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+// Render API status
+function renderAPIStatus(apiStatus) {
+    const container = document.getElementById('api-status');
+    
+    const html = `
+        <div class="api-item ${apiStatus.etherscan ? 'connected' : 'disconnected'}">
+            <div class="api-indicator"></div>
+            <div class="api-info">
+                <div class="api-name">Etherscan API</div>
+                <div class="api-status">${apiStatus.etherscan ? 'Connected ✅' : 'Not Configured ⚠️'}</div>
+            </div>
+        </div>
+        
+        <div class="api-item ${apiStatus.coingecko ? 'connected' : 'disconnected'}">
+            <div class="api-indicator"></div>
+            <div class="api-info">
+                <div class="api-name">CoinGecko API</div>
+                <div class="api-status">${apiStatus.coingecko ? 'Connected ✅' : 'Not Configured ⚠️'}</div>
+            </div>
+        </div>
+        
+        <div class="api-item ${apiStatus.mockMode ? 'mock' : 'production'}">
+            <div class="api-indicator"></div>
+            <div class="api-info">
+                <div class="api-name">Operating Mode</div>
+                <div class="api-status">${apiStatus.mockMode ? '🧪 Mock Mode' : '🚀 Production Mode'}</div>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+// Render background jobs
+function renderBackgroundJobs(jobs) {
+    const container = document.getElementById('background-jobs');
+    
+    const html = `
+        <div class="job-item">
+            <div class="job-name">🔍 Wallet Tracking</div>
+            <div class="job-schedule">Every ${jobs.tracking.interval} ${jobs.tracking.unit}</div>
+            <div class="job-last">Last run: ${formatTimeAgo(jobs.tracking.lastRun)}</div>
+        </div>
+        
+        <div class="job-item">
+            <div class="job-name">🔬 Discovery</div>
+            <div class="job-schedule">Every ${jobs.discovery.interval} ${jobs.discovery.unit}</div>
+            <div class="job-last">Last run: ${formatTimeAgo(jobs.discovery.lastRun)}</div>
+        </div>
+        
+        <div class="job-item">
+            <div class="job-name">📊 Position Management</div>
+            <div class="job-schedule">Every ${jobs.positionManagement.interval} ${jobs.positionManagement.unit}</div>
+            <div class="job-last">Last run: ${formatTimeAgo(jobs.positionManagement.lastRun)}</div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+// Render system logs (simulate recent logs)
+function renderSystemLogs(status) {
+    const container = document.getElementById('system-logs');
+    
+    // Build log entries from status
+    const logs = [];
+    
+    if (status.components.universalTracker.lastActivity !== 'Never') {
+        logs.push({
+            time: status.components.universalTracker.lastActivity,
+            level: 'info',
+            message: 'Wallet tracking cycle completed',
+            component: 'Tracker'
+        });
+    }
+    
+    if (status.components.paperTradingEngine.lastActivity !== 'Never') {
+        logs.push({
+            time: status.components.paperTradingEngine.lastActivity,
+            level: 'success',
+            message: 'Paper trades executed',
+            component: 'Trading'
+        });
+    }
+    
+    if (status.components.walletDiscovery.lastRun !== 'Never') {
+        logs.push({
+            time: status.components.walletDiscovery.lastRun,
+            level: 'info',
+            message: `Discovery complete: ${status.components.walletDiscovery.dailyCount} wallets found today`,
+            component: 'Discovery'
+        });
+    }
+    
+    logs.push({
+        time: status.timestamp,
+        level: 'info',
+        message: `System healthy • ${status.recentActivity.transactionsLastHour} transactions in last hour`,
+        component: 'System'
+    });
+    
+    // Sort by time descending
+    logs.sort((a, b) => new Date(b.time) - new Date(a.time));
+    
+    const html = logs.slice(0, 20).map(log => `
+        <div class="log-entry log-${log.level}">
+            <div class="log-time">${formatTime(log.time)}</div>
+            <div class="log-component">[${log.component}]</div>
+            <div class="log-message">${log.message}</div>
+        </div>
+    `).join('');
+    
+    container.innerHTML = html || '<div class="empty-state-small">No recent logs</div>';
+}
+
+// Refresh system status
+async function refreshSystemStatus() {
+    showToast('Refreshing system status...', 'info');
+    await loadSystemStatus();
+    showToast('System status updated!', 'success');
+}
+
+// Clear system logs (client-side only)
+function clearSystemLogs() {
+    const container = document.getElementById('system-logs');
+    container.innerHTML = '<div class="empty-state-small">Logs cleared (will repopulate on next refresh)</div>';
+    showToast('Logs cleared', 'info');
+}
+
+// Export system logs
+function exportSystemLogs() {
+    const logs = document.getElementById('system-logs').innerText;
+    const blob = new Blob([logs], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `moneymaker-logs-${new Date().toISOString().split('T')[0]}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Logs exported!', 'success');
 }

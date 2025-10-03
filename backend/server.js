@@ -162,6 +162,8 @@ function startBackgroundJobs() {
     if (isInitialized && universalTracker && paperTradingEngine) {
       try {
         logger.info('CRON: Running wallet tracking');
+        await db.setSystemState('last_tracking_cycle', new Date().toISOString());
+        
         const transactions = await universalTracker.trackAllWallets();
         
         // Process transactions through paper trading engine
@@ -170,6 +172,7 @@ function startBackgroundJobs() {
           const tradesExecuted = await paperTradingEngine.processTransactions(transactions);
           if (tradesExecuted > 0) {
             logger.info(`CRON: Executed ${tradesExecuted} paper trades`);
+            await db.setSystemState('last_trade_execution', new Date().toISOString());
           }
         }
       } catch (error) {
@@ -208,6 +211,7 @@ function startBackgroundJobs() {
   cron.schedule(`*/${positionInterval} * * * *`, async () => {
     if (isInitialized && paperTradingEngine) {
       try {
+        await db.setSystemState('last_position_check', new Date().toISOString());
         await paperTradingEngine.managePositions();
       } catch (error) {
         logger.error('CRON: Position management failed', { error: error.message });
@@ -497,6 +501,96 @@ app.get('/api/stats', async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Get system health status (for monitoring)
+app.get('/api/system/status', async (req, res) => {
+  try {
+    const uptime = process.uptime();
+    const memoryUsage = process.memoryUsage();
+    
+    // Get component status
+    const components = {
+      database: {
+        status: db.db ? 'operational' : 'offline',
+        lastActivity: new Date().toISOString()
+      },
+      universalTracker: {
+        status: universalTracker ? 'operational' : 'offline',
+        isTracking: universalTracker?.isTracking || false,
+        lastActivity: await db.getSystemState('last_tracking_cycle') || 'Never'
+      },
+      paperTradingEngine: {
+        status: paperTradingEngine ? 'operational' : 'offline',
+        processedCount: paperTradingEngine?.lastProcessedTx?.size || 0,
+        lastActivity: await db.getSystemState('last_trade_execution') || 'Never'
+      },
+      walletDiscovery: {
+        status: walletDiscovery ? 'operational' : 'offline',
+        lastRun: await db.getSystemState('last_discovery_run') || 'Never',
+        dailyCount: parseInt(await db.getSystemState('discovery_count_today') || '0')
+      }
+    };
+    
+    // Get recent activity
+    const recentTransactions = await db.query(
+      'SELECT COUNT(*) as count FROM transactions WHERE timestamp >= datetime(\'now\', \'-1 hour\')'
+    );
+    
+    const recentTrades = await db.query(
+      'SELECT COUNT(*) as count FROM paper_trades WHERE entry_time >= datetime(\'now\', \'-1 hour\')'
+    );
+    
+    // API status
+    const apiStatus = {
+      etherscan: !!config.apiKeys.etherscan,
+      coingecko: !!process.env.COINGECKO_API_KEY,
+      mockMode: config.mockMode.enabled
+    };
+    
+    // Get background job status
+    const jobs = {
+      tracking: {
+        interval: process.env.TRACKING_INTERVAL || 10,
+        unit: 'minutes',
+        lastRun: await db.getSystemState('last_tracking_cycle') || 'Never'
+      },
+      discovery: {
+        interval: process.env.DISCOVERY_INTERVAL || 6,
+        unit: 'hours',
+        lastRun: await db.getSystemState('last_discovery_run') || 'Never'
+      },
+      positionManagement: {
+        interval: process.env.POSITION_MANAGEMENT_INTERVAL || 5,
+        unit: 'minutes',
+        lastRun: await db.getSystemState('last_position_check') || 'Never'
+      }
+    };
+    
+    res.json({
+      status: 'operational',
+      uptime: Math.floor(uptime),
+      memory: {
+        used: Math.round(memoryUsage.heapUsed / 1024 / 1024),
+        total: Math.round(memoryUsage.heapTotal / 1024 / 1024),
+        limit: Math.round(memoryUsage.rss / 1024 / 1024)
+      },
+      components,
+      recentActivity: {
+        transactionsLastHour: recentTransactions[0].count,
+        tradesLastHour: recentTrades[0].count
+      },
+      apiStatus,
+      jobs,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Error getting system status', { error: error.message });
+    res.status(500).json({ 
+      status: 'error',
+      error: error.message 
+    });
   }
 });
 

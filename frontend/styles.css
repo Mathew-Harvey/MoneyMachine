@@ -1596,3 +1596,326 @@ code, .address {
     line-height: 1.8;
     font-size: 1rem;
 }
+
+/* ========== SYSTEM STATUS STYLES ========== */
+
+.system-status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 20px 0;
+}
+
+.status-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.status-card h3 {
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+/* Component Health */
+.component-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border-left: 3px solid var(--border-color);
+}
+
+.component-item.healthy {
+    border-left-color: var(--green);
+}
+
+.component-item.error {
+    border-left-color: var(--red);
+}
+
+.component-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-top: 4px;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.component-item.healthy .component-indicator {
+    background: var(--green);
+    box-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+}
+
+.component-item.error .component-indicator {
+    background: var(--red);
+    box-shadow: 0 0 10px rgba(248, 113, 113, 0.5);
+}
+
+.component-info {
+    flex: 1;
+}
+
+.component-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.component-status {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.component-detail {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    opacity: 0.8;
+}
+
+/* Log Viewer */
+.log-card {
+    grid-column: span 2;
+    max-height: 400px;
+}
+
+.log-viewer {
+    max-height: 300px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.log-entry {
+    display: flex;
+    gap: 10px;
+    padding: 6px 8px;
+    border-left: 3px solid var(--border-color);
+    margin-bottom: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+}
+
+.log-entry.log-success {
+    border-left-color: var(--green);
+}
+
+.log-entry.log-info {
+    border-left-color: var(--accent-blue);
+}
+
+.log-entry.log-warning {
+    border-left-color: var(--yellow);
+}
+
+.log-entry.log-error {
+    border-left-color: var(--red);
+}
+
+.log-time {
+    color: var(--text-secondary);
+    white-space: nowrap;
+    font-size: 0.8rem;
+}
+
+.log-component {
+    color: var(--accent-purple);
+    font-weight: 600;
+    min-width: 100px;
+}
+
+.log-message {
+    color: var(--text-primary);
+    flex: 1;
+}
+
+/* API Status */
+.api-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.api-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.api-item.connected .api-indicator {
+    background: var(--green);
+}
+
+.api-item.disconnected .api-indicator {
+    background: var(--red);
+}
+
+.api-item.mock .api-indicator {
+    background: var(--yellow);
+}
+
+.api-item.production .api-indicator {
+    background: var(--accent-blue);
+}
+
+.api-info {
+    flex: 1;
+}
+
+.api-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.api-status {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+/* System Metrics */
+.metric-item {
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.metric-item:last-child {
+    border-bottom: none;
+}
+
+.metric-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.metric-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.metric-bar {
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.metric-bar-fill {
+    height: 100%;
+    background: var(--gradient-success);
+    transition: width 0.3s ease;
+}
+
+.metric-bar-fill.warning {
+    background: var(--gradient-danger);
+}
+
+/* Background Jobs */
+.job-item {
+    padding: 12px;
+    margin-bottom: 10px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 6px;
+    border-left: 3px solid var(--accent-blue);
+}
+
+.job-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.job-schedule {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.job-last {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    opacity: 0.7;
+    margin-top: 4px;
+}
+
+/* Quick Actions */
+.quick-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.action-btn {
+    padding: 12px 16px;
+    background: var(--gradient-primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.action-btn.secondary {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.action-btn.secondary:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* Responsive for System Status */
+@media (max-width: 1200px) {
+    .log-card {
+        grid-column: span 1;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .details-section {
+        margin: 20px 10px;
+        padding: 15px;
+    }
+    
+    .data-table {
+        font-size: 0.85rem;
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: 10px 8px;
+    }
+    
+    .system-status-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .log-card {
+        grid-column: span 1;
+    }
+}

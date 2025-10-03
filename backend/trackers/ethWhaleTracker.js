@@ -251,7 +251,13 @@ class EthWhaleTracker {
     }
     
     const currentBlock = await this.provider.getBlockNumber();
-    return currentBlock - 1000; // Go back 1000 blocks (~4 hours)
+    
+    // On first run for a wallet, look back further to get historical data
+    // This populates the activity feed with initial transactions
+    const firstRun = this.lastCheck.size === 0;
+    const blocksToLookBack = firstRun ? 50000 : 1000; // ~7 days vs ~4 hours
+    
+    return currentBlock - blocksToLookBack;
   }
 
   /**

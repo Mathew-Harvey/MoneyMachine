@@ -268,7 +268,12 @@ class BaseGemTracker {
     }
     
     const currentBlock = await this.provider.getBlockNumber();
-    return currentBlock - 2000;
+    
+    // On first run for a wallet, look back further to get historical data
+    const firstRun = this.lastCheck.size === 0;
+    const blocksToLookBack = firstRun ? 100000 : 2000; // ~14 days vs ~8 hours
+    
+    return currentBlock - blocksToLookBack;
   }
 
   /**
