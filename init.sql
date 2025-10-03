@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS transactions (
     total_value_usd REAL,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     block_number INTEGER,
-    FOREIGN KEY (wallet_address) REFERENCES wallets(address)
+    FOREIGN KEY (wallet_address) REFERENCES wallets(address),
+    UNIQUE(wallet_address, tx_hash, chain)  -- Prevent duplicate transactions
 );
 
 -- Paper trading positions

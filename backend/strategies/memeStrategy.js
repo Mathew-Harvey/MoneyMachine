@@ -72,15 +72,15 @@ class MemeStrategy {
     const timeWindow = this.config.copyTimeWindow * 1000; // Convert to ms
     const now = new Date(transaction.timestamp).getTime();
     
-    // Query recent buys of same token
+    // Query recent buys of same token - using parameter binding to prevent SQL injection
     const recentBuys = await this.db.query(`
       SELECT COUNT(DISTINCT wallet_address) as count
       FROM transactions
       WHERE 
         token_address = ?
         AND action = 'buy'
-        AND timestamp >= datetime('now', '-${this.config.copyTimeWindow} seconds')
-    `, [transaction.token_address]);
+        AND timestamp >= datetime('now', ? || ' seconds')
+    `, [transaction.token_address, `-${this.config.copyTimeWindow}`]);
 
     return recentBuys[0]?.count || 0;
   }
@@ -205,19 +205,19 @@ class MemeStrategy {
       [this.name]
     );
 
-    const wins = trades.filter(t => t.pnl > 0).length;
-    const losses = trades.filter(t => t.pnl <= 0).length;
-    const totalPnl = trades.reduce((sum, t) => sum + t.pnl, 0);
+    const wins = trades.filter(t => (t.pnl || 0) > 0).length;
+    const losses = trades.filter(t => (t.pnl || 0) <= 0).length;
+    const totalPnl = trades.reduce((sum, t) => sum + (t.pnl || 0), 0);
     const winRate = trades.length > 0 ? wins / trades.length : 0;
 
     // Calculate how many hit each tier
-    const tier2x = trades.filter(t => t.pnl_percentage >= 100).length;
-    const tier10x = trades.filter(t => t.pnl_percentage >= 900).length;
-    const tier100x = trades.filter(t => t.pnl_percentage >= 9900).length;
+    const tier2x = trades.filter(t => (t.pnl_percentage || 0) >= 100).length;
+    const tier10x = trades.filter(t => (t.pnl_percentage || 0) >= 900).length;
+    const tier100x = trades.filter(t => (t.pnl_percentage || 0) >= 9900).length;
 
-    const avgWin = wins > 0 ? trades.filter(t => t.pnl > 0).reduce((sum, t) => sum + t.pnl, 0) / wins : 0;
-    const avgLoss = losses > 0 ? Math.abs(trades.filter(t => t.pnl <= 0).reduce((sum, t) => sum + t.pnl, 0) / losses) : 0;
-    const biggestWin = trades.length > 0 ? Math.max(...trades.map(t => t.pnl)) : 0;
+    const avgWin = wins > 0 ? trades.filter(t => (t.pnl || 0) > 0).reduce((sum, t) => sum + (t.pnl || 0), 0) / wins : 0;
+    const avgLoss = losses > 0 ? Math.abs(trades.filter(t => (t.pnl || 0) <= 0).reduce((sum, t) => sum + (t.pnl || 0), 0) / losses) : 0;
+    const biggestWin = trades.length > 0 ? Math.max(...trades.map(t => t.pnl || 0), 0) : 0;
 
     const currentCapital = this.config.allocation + totalPnl;
     const roi = (totalPnl / this.config.allocation) * 100;

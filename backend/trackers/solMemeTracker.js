@@ -12,7 +12,8 @@ class SolMemeTracker {
     this.db = db;
     this.connection = null;
     this.rpcIndex = 0;
-    this.lastCheck = {};
+    this.lastCheck = new Map();  // Changed to Map to prevent memory leak
+    this.maxCacheSize = 100;  // Limit cache size
     this.mockMode = config.mockMode.enabled;
   }
 
@@ -87,7 +88,7 @@ class SolMemeTracker {
       );
 
       // Get last known signature for this wallet
-      const lastSignature = this.lastCheck[wallet.address];
+      const lastSignature = this.lastCheck.get(wallet.address);
       
       // Filter new transactions
       let newSignatures = signatures;
@@ -116,9 +117,16 @@ class SolMemeTracker {
         }
       }
 
-      // Update last check
+      // Update last check with Map
       if (signatures.length > 0) {
-        this.lastCheck[wallet.address] = signatures[0].signature;
+        this.lastCheck.set(wallet.address, signatures[0].signature);
+        
+        // Cleanup old entries to prevent memory leak
+        if (this.lastCheck.size > this.maxCacheSize) {
+          const entries = Array.from(this.lastCheck.keys());
+          const toRemove = entries.slice(0, entries.length - this.maxCacheSize);
+          toRemove.forEach(key => this.lastCheck.delete(key));
+        }
       }
 
       return processed;
@@ -163,23 +171,71 @@ class SolMemeTracker {
 
       // Take the first significant change
       const change = changes[0];
+      const tokenAddress = change.mint;
+      const tokenSymbol = change.symbol || 'UNKNOWN';
+      const amount = Math.abs(change.amount);
+      
+      // Fetch real price from oracle
+      const priceOracle = require('../services/priceOracle');
+      let price_usd = 0;
+      let total_value_usd = 0;
+      
+      try {
+        const priceData = await priceOracle.getPrice(tokenAddress, 'solana');
+        if (priceData && priceData.price) {
+          price_usd = priceData.price;
+          total_value_usd = amount * price_usd;
+          
+          // Update token metadata for discovery
+          await this.updateTokenMetadata(tokenAddress, tokenSymbol, priceData);
+        }
+      } catch (priceError) {
+        console.error('Error fetching Solana price:', priceError.message);
+      }
       
       return {
         wallet_address: wallet.address,
         chain: 'solana',
         tx_hash: signature.signature,
-        token_address: change.mint,
-        token_symbol: change.symbol || 'UNKNOWN',
+        token_address: tokenAddress,
+        token_symbol: tokenSymbol,
         action: change.amount > 0 ? 'buy' : 'sell',
-        amount: Math.abs(change.amount),
-        price_usd: 0, // Would need price oracle
-        total_value_usd: 0,
+        amount,
+        price_usd,
+        total_value_usd,
         timestamp: new Date(signature.blockTime * 1000).toISOString(),
         block_number: signature.slot
       };
     } catch (error) {
       console.error('Error processing Solana transaction:', error.message);
       return null;
+    }
+  }
+
+  /**
+   * Update token metadata in database for discovery
+   */
+  async updateTokenMetadata(tokenAddress, tokenSymbol, priceData) {
+    try {
+      const existingToken = await this.db.getToken(tokenAddress);
+      
+      const tokenData = {
+        address: tokenAddress,
+        chain: 'solana',
+        symbol: tokenSymbol,
+        name: tokenSymbol,
+        decimals: 9, // Most Solana tokens use 9 decimals
+        current_price_usd: priceData.price,
+        max_price_usd: existingToken 
+          ? Math.max(existingToken.max_price_usd || 0, priceData.price)
+          : priceData.price,
+        market_cap_usd: priceData.marketCap || 0,
+        creation_time: existingToken?.creation_time || new Date().toISOString()
+      };
+      
+      await this.db.addOrUpdateToken(tokenData);
+    } catch (error) {
+      console.error('Error updating Solana token metadata:', error.message);
     }
   }
 
@@ -252,7 +308,7 @@ class SolMemeTracker {
    * Generate mock transactions for testing
    */
   generateMockTransactions(wallet) {
-    const count = Math.random() < 0.4 ? Math.floor(Math.random() * 4) : 0;
+    const count = Math.random() < 0.7 ? Math.floor(Math.random() * 4) : 0;
     const transactions = [];
     
     const memecoins = ['BONK', 'WIF', 'POPCAT', 'MYRO', 'SAMO', 'COPE'];

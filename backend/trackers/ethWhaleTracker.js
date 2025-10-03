@@ -13,7 +13,8 @@ class EthWhaleTracker {
     this.db = db;
     this.provider = null;
     this.rpcIndex = 0;
-    this.lastCheck = {};
+    this.lastCheck = new Map();  // Changed to Map to prevent memory leak
+    this.maxCacheSize = 100;  // Limit cache size
     this.mockMode = config.mockMode.enabled;
   }
 
@@ -79,7 +80,7 @@ class EthWhaleTracker {
 
     try {
       // Get recent transactions using Etherscan API (free tier)
-      const lastBlock = this.lastCheck[wallet.address] || await this.getRecentBlock();
+      const lastBlock = this.lastCheck.get(wallet.address) || await this.getRecentBlock();
       const transactions = await this.getWalletTransactions(wallet.address, lastBlock);
       
       // Process and store transactions
@@ -92,7 +93,17 @@ class EthWhaleTracker {
         }
       }
 
-      this.lastCheck[wallet.address] = await this.provider.getBlockNumber();
+      // Update last check with Map
+      const currentBlock = await this.provider.getBlockNumber();
+      this.lastCheck.set(wallet.address, currentBlock);
+      
+      // Cleanup old entries to prevent memory leak
+      if (this.lastCheck.size > this.maxCacheSize) {
+        const entries = Array.from(this.lastCheck.keys());
+        const toRemove = entries.slice(0, entries.length - this.maxCacheSize);
+        toRemove.forEach(key => this.lastCheck.delete(key));
+      }
+      
       return processed;
     } catch (error) {
       console.error(`Error tracking wallet ${wallet.address}:`, error.message);
@@ -132,25 +143,76 @@ class EthWhaleTracker {
    */
   async processTransaction(tx, wallet) {
     try {
+      const priceOracle = require('../services/priceOracle');
+      
       // Determine if it's a buy or sell
       const isBuy = tx.to && tx.to.toLowerCase() === wallet.address.toLowerCase();
+      const tokenAddress = tx.contractAddress || tx.address;
+      const tokenSymbol = tx.tokenSymbol || 'UNKNOWN';
+      const amount = parseFloat(tx.value || 0) / Math.pow(10, parseInt(tx.tokenDecimal || 18));
+      
+      // Fetch real price from oracle
+      let price_usd = 0;
+      let total_value_usd = 0;
+      
+      try {
+        const priceData = await priceOracle.getPrice(tokenAddress, 'ethereum');
+        if (priceData && priceData.price) {
+          price_usd = priceData.price;
+          total_value_usd = amount * price_usd;
+          
+          // Update token metadata for discovery
+          await this.updateTokenMetadata(tokenAddress, tokenSymbol, priceData);
+        }
+      } catch (priceError) {
+        console.error('Error fetching price:', priceError.message);
+      }
       
       return {
         wallet_address: wallet.address,
         chain: 'ethereum',
         tx_hash: tx.hash || tx.transactionHash,
-        token_address: tx.contractAddress || tx.address,
-        token_symbol: tx.tokenSymbol || 'UNKNOWN',
+        token_address: tokenAddress,
+        token_symbol: tokenSymbol,
         action: isBuy ? 'buy' : 'sell',
-        amount: parseFloat(tx.value || 0) / Math.pow(10, parseInt(tx.tokenDecimal || 18)),
-        price_usd: 0, // Would need price oracle
-        total_value_usd: 0,
+        amount,
+        price_usd,
+        total_value_usd,
         timestamp: new Date(parseInt(tx.timeStamp || Date.now() / 1000) * 1000).toISOString(),
         block_number: parseInt(tx.blockNumber || 0)
       };
     } catch (error) {
       console.error('Error processing transaction:', error.message);
       return null;
+    }
+  }
+
+  /**
+   * Update token metadata in database for discovery
+   */
+  async updateTokenMetadata(tokenAddress, tokenSymbol, priceData) {
+    try {
+      // Get existing token data
+      const existingToken = await this.db.getToken(tokenAddress);
+      
+      const tokenData = {
+        address: tokenAddress,
+        chain: 'ethereum',
+        symbol: tokenSymbol,
+        name: tokenSymbol, // Could fetch from contract
+        decimals: 18,
+        current_price_usd: priceData.price,
+        max_price_usd: existingToken 
+          ? Math.max(existingToken.max_price_usd || 0, priceData.price)
+          : priceData.price,
+        market_cap_usd: priceData.marketCap || 0,
+        creation_time: existingToken?.creation_time || new Date().toISOString()
+      };
+      
+      await this.db.addOrUpdateToken(tokenData);
+    } catch (error) {
+      // Don't fail transaction processing if token update fails
+      console.error('Error updating token metadata:', error.message);
     }
   }
 
@@ -196,8 +258,8 @@ class EthWhaleTracker {
    * Generate mock transactions for testing
    */
   generateMockTransactions(wallet) {
-    // Randomly generate 0-2 transactions
-    const count = Math.random() < 0.3 ? Math.floor(Math.random() * 3) : 0;
+    // Randomly generate 0-2 transactions (increased probability for testing)
+    const count = Math.random() < 0.7 ? Math.floor(Math.random() * 3) : 0;
     const transactions = [];
 
     for (let i = 0; i < count; i++) {

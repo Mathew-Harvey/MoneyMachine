@@ -340,13 +340,33 @@ class PriceOracle {
     const key = `${chain}:${tokenAddress.toLowerCase()}`;
     this.cache.set(key, priceData);
 
-    // Clean old cache entries periodically
-    if (this.cache.size > 1000) {
+    // Aggressive cache cleanup to prevent memory issues in production
+    if (this.cache.size > 500) {  // Reduced from 1000
       const now = Date.now();
+      let cleaned = 0;
+      
       for (const [k, v] of this.cache.entries()) {
-        if (now - v.timestamp > this.cacheTimeout * 2) {
+        // Remove entries older than cache timeout
+        if (now - v.timestamp > this.cacheTimeout) {
           this.cache.delete(k);
+          cleaned++;
         }
+      }
+      
+      // If still too large, remove oldest 25%
+      if (this.cache.size > 500) {
+        const entries = Array.from(this.cache.entries());
+        entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+        const toRemove = entries.slice(0, Math.floor(entries.length * 0.25));
+        toRemove.forEach(([k]) => this.cache.delete(k));
+        cleaned += toRemove.length;
+      }
+      
+      if (cleaned > 0) {
+        logger.debug('Price cache cleaned', {
+          removed: cleaned,
+          remaining: this.cache.size
+        });
       }
     }
   }

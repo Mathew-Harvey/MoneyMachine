@@ -145,12 +145,12 @@ class ArbitrageStrategy {
       [this.name]
     );
 
-    const wins = trades.filter(t => t.pnl > 0).length;
-    const losses = trades.filter(t => t.pnl <= 0).length;
-    const totalPnl = trades.reduce((sum, t) => sum + t.pnl, 0);
+    const wins = trades.filter(t => (t.pnl || 0) > 0).length;
+    const losses = trades.filter(t => (t.pnl || 0) <= 0).length;
+    const totalPnl = trades.reduce((sum, t) => sum + (t.pnl || 0), 0);
     const winRate = trades.length > 0 ? wins / trades.length : 0;
-    const avgWin = wins > 0 ? trades.filter(t => t.pnl > 0).reduce((sum, t) => sum + t.pnl, 0) / wins : 0;
-    const avgLoss = losses > 0 ? Math.abs(trades.filter(t => t.pnl <= 0).reduce((sum, t) => sum + t.pnl, 0) / losses) : 0;
+    const avgWin = wins > 0 ? trades.filter(t => (t.pnl || 0) > 0).reduce((sum, t) => sum + (t.pnl || 0), 0) / wins : 0;
+    const avgLoss = losses > 0 ? Math.abs(trades.filter(t => (t.pnl || 0) <= 0).reduce((sum, t) => sum + (t.pnl || 0), 0) / losses) : 0;
 
     const currentCapital = this.config.allocation + totalPnl;
     const roi = (totalPnl / this.config.allocation) * 100;

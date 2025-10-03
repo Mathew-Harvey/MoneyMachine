@@ -23,10 +23,63 @@ class Database {
           reject(err);
         } else {
           console.log('✓ Database connected');
-          this.initSchema().then(resolve).catch(reject);
+          this.initSchema()
+            .then(() => this.loadSeedWallets())
+            .then(resolve)
+            .catch(reject);
         }
       });
     });
+  }
+
+  // Load seed wallets if database is empty
+  async loadSeedWallets() {
+    try {
+      // Check if wallets already exist
+      const existing = await this.query('SELECT COUNT(*) as count FROM wallets');
+      if (existing[0].count > 0) {
+        console.log(`✓ Database already has ${existing[0].count} wallets`);
+        return;
+      }
+
+      console.log('📥 Loading seed wallets...');
+      const walletSeeds = require('../config/walletSeeds');
+      
+      // Add arbitrage wallets
+      for (const wallet of walletSeeds.arbitrage) {
+        await this.addWallet({
+          ...wallet,
+          strategy_type: 'arbitrage',
+          status: 'active'
+        });
+      }
+      console.log(`✓ Added ${walletSeeds.arbitrage.length} arbitrage wallets`);
+      
+      // Add memecoin wallets
+      for (const wallet of walletSeeds.memecoin) {
+        await this.addWallet({
+          ...wallet,
+          strategy_type: 'memecoin',
+          status: 'active'
+        });
+      }
+      console.log(`✓ Added ${walletSeeds.memecoin.length} memecoin wallets`);
+      
+      // Add early gem wallets
+      for (const wallet of walletSeeds.earlyGem) {
+        await this.addWallet({
+          ...wallet,
+          strategy_type: 'earlyGem',
+          status: 'active'
+        });
+      }
+      console.log(`✓ Added ${walletSeeds.earlyGem.length} early gem wallets`);
+      
+      console.log('✅ Seed wallets loaded successfully!');
+    } catch (error) {
+      console.error('❌ Error loading seed wallets:', error.message);
+      // Don't throw - allow system to continue even if seed loading fails
+    }
   }
 
   // Initialize database schema
@@ -153,24 +206,43 @@ class Database {
   // === TRANSACTION OPERATIONS ===
 
   async addTransaction(tx) {
-    const sql = `INSERT INTO transactions 
+    // Validate required fields to prevent invalid data
+    if (!tx.wallet_address || !tx.tx_hash || !tx.token_address) {
+      logger.warn('Attempted to add transaction with missing required fields', {
+        wallet_address: tx.wallet_address,
+        tx_hash: tx.tx_hash,
+        token_address: tx.token_address
+      });
+      return { lastID: 0, changes: 0 };
+    }
+    
+    // Use INSERT OR IGNORE to prevent duplicates (UNIQUE constraint will catch them)
+    const sql = `INSERT OR IGNORE INTO transactions 
       (wallet_address, chain, tx_hash, token_address, token_symbol, action, 
        amount, price_usd, total_value_usd, timestamp, block_number) 
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     
-    return this.run(sql, [
-      tx.wallet_address,
-      tx.chain,
-      tx.tx_hash,
-      tx.token_address,
-      tx.token_symbol,
-      tx.action,
-      tx.amount,
-      tx.price_usd,
-      tx.total_value_usd,
-      tx.timestamp || new Date().toISOString(),
-      tx.block_number
-    ]);
+    try {
+      return await this.run(sql, [
+        tx.wallet_address,
+        tx.chain,
+        tx.tx_hash,
+        tx.token_address,
+        tx.token_symbol || 'UNKNOWN',
+        tx.action,
+        tx.amount || 0,
+        tx.price_usd || 0,
+        tx.total_value_usd || 0,
+        tx.timestamp || new Date().toISOString(),
+        tx.block_number || 0
+      ]);
+    } catch (error) {
+      logger.error('Failed to add transaction', {
+        error: error.message,
+        tx_hash: tx.tx_hash
+      });
+      return { lastID: 0, changes: 0 };
+    }
   }
 
   async getWalletTransactions(walletAddress, limit = 100) {
@@ -214,6 +286,27 @@ class Database {
     
     if (!trade) {
       throw new Error('Trade not found');
+    }
+    
+    // Validate exit price
+    if (!exitPrice || exitPrice <= 0) {
+      logger.error('Invalid exit price for trade', {
+        tradeId,
+        exitPrice,
+        token: trade.token_symbol
+      });
+      throw new Error('Invalid exit price');
+    }
+    
+    // Validate trade has required fields
+    if (!trade.amount || !trade.entry_price || !trade.entry_value_usd) {
+      logger.error('Trade missing required fields', {
+        tradeId,
+        amount: trade.amount,
+        entry_price: trade.entry_price,
+        entry_value_usd: trade.entry_value_usd
+      });
+      throw new Error('Trade data incomplete');
     }
 
     const exitValueUsd = trade.amount * exitPrice;
@@ -303,24 +396,46 @@ class Database {
   // === TOKEN OPERATIONS ===
 
   async addOrUpdateToken(token) {
-    const sql = `INSERT OR REPLACE INTO tokens 
-      (address, chain, symbol, name, decimals, creation_time, 
-       initial_liquidity_usd, current_price_usd, max_price_usd, 
-       market_cap_usd, last_updated) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
+    // Use UPDATE with MAX() to handle race conditions properly
+    // First try to update existing token
+    const updateSql = `UPDATE tokens 
+      SET current_price_usd = ?,
+          max_price_usd = MAX(COALESCE(max_price_usd, 0), ?),
+          market_cap_usd = ?,
+          last_updated = CURRENT_TIMESTAMP
+      WHERE address = ? AND chain = ?`;
     
-    return this.run(sql, [
-      token.address,
-      token.chain,
-      token.symbol,
-      token.name,
-      token.decimals || 18,
-      token.creation_time,
-      token.initial_liquidity_usd,
+    const updateResult = await this.run(updateSql, [
       token.current_price_usd,
-      token.max_price_usd,
-      token.market_cap_usd
+      token.current_price_usd,  // Will be compared with existing max
+      token.market_cap_usd,
+      token.address,
+      token.chain
     ]);
+    
+    // If no rows updated, insert new token
+    if (updateResult.changes === 0) {
+      const insertSql = `INSERT OR IGNORE INTO tokens 
+        (address, chain, symbol, name, decimals, creation_time, 
+         initial_liquidity_usd, current_price_usd, max_price_usd, 
+         market_cap_usd, last_updated) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
+      
+      return this.run(insertSql, [
+        token.address,
+        token.chain,
+        token.symbol,
+        token.name,
+        token.decimals || 18,
+        token.creation_time,
+        token.initial_liquidity_usd,
+        token.current_price_usd,
+        token.current_price_usd,  // max_price starts at current
+        token.market_cap_usd
+      ]);
+    }
+    
+    return updateResult;
   }
 
   async getToken(address) {

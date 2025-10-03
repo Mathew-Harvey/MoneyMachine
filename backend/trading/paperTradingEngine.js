@@ -25,7 +25,9 @@ class PaperTradingEngine {
     this.strategies = {};
     this.riskManager = new RiskManager(db);
     this.exitStrategy = new ExitStrategy(db);
-    this.lastProcessedTx = {};
+    this.lastProcessedTx = new Map();  // Changed to Map for better memory management
+    this.maxCacheSize = 10000;  // Prevent memory leak
+    this.cleanupInterval = null;  // Store interval ID for cleanup
   }
 
   async init() {
@@ -37,7 +39,40 @@ class PaperTradingEngine {
     this.strategies.earlyGem = new EarlyGemStrategy(this.db);
     this.strategies.adaptive = new AdaptiveStrategy(this.db);
     
+    // Setup periodic cache cleanup to prevent memory leaks
+    this.startCacheCleanup();
+    
     console.log('✓ Paper Trading Engine ready');
+  }
+
+  /**
+   * Prevent memory leak by cleaning old processed transactions
+   */
+  startCacheCleanup() {
+    this.cleanupInterval = setInterval(() => {
+      if (this.lastProcessedTx.size > this.maxCacheSize) {
+        // Remove oldest half of entries to free memory
+        const entries = Array.from(this.lastProcessedTx.keys());
+        const toRemove = entries.slice(0, Math.floor(entries.length / 2));
+        toRemove.forEach(key => this.lastProcessedTx.delete(key));
+        
+        logger.info('Cleaned processed transaction cache', {
+          removed: toRemove.length,
+          remaining: this.lastProcessedTx.size
+        });
+      }
+    }, 3600000); // Check every hour
+  }
+
+  /**
+   * Cleanup on shutdown to prevent resource leaks
+   */
+  shutdown() {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+      logger.info('Paper trading engine cleanup interval cleared');
+    }
   }
 
   /**
@@ -49,7 +84,7 @@ class PaperTradingEngine {
     for (const tx of transactions) {
       // Skip if already processed
       const txKey = `${tx.wallet_address}_${tx.tx_hash}`;
-      if (this.lastProcessedTx[txKey]) {
+      if (this.lastProcessedTx.has(txKey)) {
         continue;
       }
       
@@ -87,7 +122,7 @@ class PaperTradingEngine {
           }
         }
         
-        this.lastProcessedTx[txKey] = true;
+        this.lastProcessedTx.set(txKey, Date.now());  // Store with timestamp
       } catch (error) {
         console.error(`Error processing transaction:`, error.message);
       }

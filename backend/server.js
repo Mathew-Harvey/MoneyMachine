@@ -159,10 +159,19 @@ function startBackgroundJobs() {
   
   // Track wallets
   cron.schedule(`*/${trackingInterval} * * * *`, async () => {
-    if (isInitialized && universalTracker) {
+    if (isInitialized && universalTracker && paperTradingEngine) {
       try {
         logger.info('CRON: Running wallet tracking');
-        await universalTracker.trackAllWallets();
+        const transactions = await universalTracker.trackAllWallets();
+        
+        // Process transactions through paper trading engine
+        if (transactions && transactions.length > 0) {
+          logger.info(`CRON: Processing ${transactions.length} transactions for trading`);
+          const tradesExecuted = await paperTradingEngine.processTransactions(transactions);
+          if (tradesExecuted > 0) {
+            logger.info(`CRON: Executed ${tradesExecuted} paper trades`);
+          }
+        }
       } catch (error) {
         logger.error('CRON: Wallet tracking failed', { error: error.message });
       }
@@ -382,8 +391,19 @@ app.post('/api/track', strictLimiter, authenticateApiKey, async (req, res) => {
     }
     
     logger.info('Manual wallet tracking triggered', { ip: req.ip });
-    await universalTracker.trackAllWallets();
-    res.json({ success: true, message: 'Tracking completed' });
+    const transactions = await universalTracker.trackAllWallets();
+    
+    let tradesExecuted = 0;
+    if (transactions && transactions.length > 0) {
+      tradesExecuted = await paperTradingEngine.processTransactions(transactions);
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Tracking completed',
+      transactionsFound: transactions ? transactions.length : 0,
+      tradesExecuted 
+    });
   } catch (error) {
     logger.error('Manual tracking failed', { error: error.message });
     res.status(500).json({ error: error.message });
@@ -498,9 +518,17 @@ const gracefulShutdown = async (signal) => {
   logger.info(`${signal} received, shutting down gracefully`);
   
   try {
+    // Cleanup paper trading engine intervals
+    if (paperTradingEngine && typeof paperTradingEngine.shutdown === 'function') {
+      paperTradingEngine.shutdown();
+      logger.info('Paper trading engine shut down');
+    }
+    
     // Close database connection
     await db.close();
     logger.info('Database connection closed');
+    
+    // Note: Cron jobs will be killed with process exit
     
     // Exit process
     process.exit(0);

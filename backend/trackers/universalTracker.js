@@ -56,25 +56,25 @@ class UniversalTracker {
       const walletsByChain = this.groupWalletsByChain(wallets);
 
       // Track each chain sequentially to avoid overwhelming RPCs
-      const results = [];
+      const allTransactions = [];
       for (const [chain, chainWallets] of Object.entries(walletsByChain)) {
         if (this.trackers[chain] && chainWallets.length > 0) {
           console.log(`  🔍 Checking ${chainWallets.length} ${chain} wallets...`);
           const transactions = await this.trackers[chain].trackWallets(chainWallets);
           console.log(`  ✓ Found ${transactions.length} new transactions on ${chain}`);
-          results.push(transactions);
+          allTransactions.push(...transactions);
           
           // Add delay between chains (increased to 5 seconds for better rate limit handling)
           await this.sleep(5000); // 5 second delay between chains
         }
       }
       
-      totalTransactions = results.flat().length;
+      totalTransactions = allTransactions.length;
 
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
       console.log(`✓ Tracking cycle complete: ${totalTransactions} transactions found in ${duration}s\n`);
 
-      return totalTransactions;
+      return allTransactions;
     } catch (error) {
       console.error('❌ Error during tracking cycle:', error.message);
       throw error;
