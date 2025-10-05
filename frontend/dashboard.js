@@ -205,11 +205,18 @@ function updateStrategy(strategyName, prefix, data) {
     const trades = data.trades || 0;
     const pnl = data.pnl || 0;
     
-    document.getElementById(`${prefix}-trades`).textContent = `${trades} trades`;
-    
+    // Check if elements exist (may not exist for all strategies in UI)
+    const tradesEl = document.getElementById(`${prefix}-trades`);
     const pnlEl = document.getElementById(`${prefix}-pnl`);
-    pnlEl.textContent = formatMoney(pnl);
-    pnlEl.className = 'stat-small ' + (pnl >= 0 ? 'positive' : 'negative');
+    
+    if (tradesEl) {
+        tradesEl.textContent = `${trades} trades`;
+    }
+    
+    if (pnlEl) {
+        pnlEl.textContent = formatMoney(pnl);
+        pnlEl.className = 'stat-small ' + (pnl >= 0 ? 'positive' : 'negative');
+    }
 }
 
 // Update activity feed with simple language

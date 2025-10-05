@@ -110,15 +110,20 @@ class Database {
 
   // Run database migrations for schema updates
   async runMigrations() {
-    // Add peak_price column if it doesn't exist
     try {
-      await this.run(`ALTER TABLE paper_trades ADD COLUMN peak_price REAL`);
-      console.log('✓ Migration: Added peak_price column');
-    } catch (error) {
-      // Column already exists, ignore
-      if (!error.message.includes('duplicate column')) {
-        throw error;
+      // Check if peak_price column exists
+      const tableInfo = await this.query(`PRAGMA table_info(paper_trades)`);
+      const hasPeakPrice = tableInfo.some(col => col.name === 'peak_price');
+      
+      if (!hasPeakPrice) {
+        await this.run(`ALTER TABLE paper_trades ADD COLUMN peak_price REAL`);
+        console.log('✓ Migration: Added peak_price column');
+      } else {
+        console.log('✓ Database schema up to date');
       }
+    } catch (error) {
+      console.warn('Migration warning:', error.message);
+      // Don't fail startup on migration errors
     }
   }
 
