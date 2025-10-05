@@ -34,15 +34,16 @@ class UniversalTracker {
 
   /**
    * Track all active wallets across all chains
+   * OPTIMIZED FOR 1-MINUTE CYCLES: Smart batching to avoid rate limits
    */
   async trackAllWallets() {
     if (this.isTracking) {
       console.log('⏭️  Tracking already in progress, skipping...');
-      return;
+      return [];  // Return empty array instead of undefined
     }
 
     this.isTracking = true;
-    console.log('\n📡 Starting wallet tracking cycle...');
+    console.log('\n📡 Starting wallet tracking cycle (1-min optimized)...');
     
     try {
       const startTime = Date.now();
@@ -50,29 +51,47 @@ class UniversalTracker {
 
       // Get all active wallets
       const wallets = await this.db.getWallets(null, 'active');
-      console.log(`  📊 Tracking ${wallets.length} active wallets`);
+      
+      // SMART BATCHING: Only track subset per cycle to stay under rate limits
+      // 1-minute cycles = 60 cycles/hour
+      // With 30 wallets, track 6 wallets per cycle = all wallets covered every 5 minutes
+      const walletsPerCycle = Math.min(6, Math.ceil(wallets.length / 5));
+      const cycleNumber = Math.floor(Date.now() / 60000) % Math.ceil(wallets.length / walletsPerCycle);
+      const startIdx = cycleNumber * walletsPerCycle;
+      const batchWallets = wallets.slice(startIdx, startIdx + walletsPerCycle);
+      
+      console.log(`  📊 Tracking ${batchWallets.length}/${wallets.length} wallets (batch ${cycleNumber + 1}/${Math.ceil(wallets.length / walletsPerCycle)})`);
 
-      // Group wallets by chain
-      const walletsByChain = this.groupWalletsByChain(wallets);
+      // Group this batch by chain
+      const walletsByChain = this.groupWalletsByChain(batchWallets);
 
-      // Track each chain sequentially to avoid overwhelming RPCs
+      // Track each chain with MINIMAL delays (1-min cycles need speed)
       const allTransactions = [];
-      for (const [chain, chainWallets] of Object.entries(walletsByChain)) {
+      const chainEntries = Object.entries(walletsByChain);
+      
+      for (let i = 0; i < chainEntries.length; i++) {
+        const [chain, chainWallets] = chainEntries[i];
+        
         if (this.trackers[chain] && chainWallets.length > 0) {
           console.log(`  🔍 Checking ${chainWallets.length} ${chain} wallets...`);
           const transactions = await this.trackers[chain].trackWallets(chainWallets);
           console.log(`  ✓ Found ${transactions.length} new transactions on ${chain}`);
           allTransactions.push(...transactions);
           
-          // Add delay between chains (increased to 5 seconds for better rate limit handling)
-          await this.sleep(5000); // 5 second delay between chains
+          // Only delay if more chains remain
+          if (i < chainEntries.length - 1) {
+            await this.sleep(2000);
+          }
         }
       }
       
       totalTransactions = allTransactions.length;
 
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-      console.log(`✓ Tracking cycle complete: ${totalTransactions} transactions found in ${duration}s\n`);
+      const walletList = batchWallets.length > 0 
+        ? batchWallets.map(w => w.address.substring(0,8)).join(', ')
+        : 'none';
+      console.log(`✓ Cycle complete: ${totalTransactions} transactions in ${duration}s (${walletList})\n`);
 
       return allTransactions;
     } catch (error) {

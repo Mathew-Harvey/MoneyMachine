@@ -87,17 +87,39 @@ class Database {
     const schemaPath = path.join(__dirname, '..', 'init.sql');
     const schema = fs.readFileSync(schemaPath, 'utf8');
     
-    return new Promise((resolve, reject) => {
-      this.db.exec(schema, (err) => {
+    return new Promise(async (resolve, reject) => {
+      this.db.exec(schema, async (err) => {
         if (err) {
           console.error('Error initializing schema:', err);
           reject(err);
         } else {
           console.log('✓ Database schema initialized');
+          
+          // Run migrations for existing databases
+          try {
+            await this.runMigrations();
+          } catch (migErr) {
+            console.warn('Migration warning:', migErr.message);
+          }
+          
           resolve();
         }
       });
     });
+  }
+
+  // Run database migrations for schema updates
+  async runMigrations() {
+    // Add peak_price column if it doesn't exist
+    try {
+      await this.run(`ALTER TABLE paper_trades ADD COLUMN peak_price REAL`);
+      console.log('✓ Migration: Added peak_price column');
+    } catch (error) {
+      // Column already exists, ignore
+      if (!error.message.includes('duplicate column')) {
+        throw error;
+      }
+    }
   }
 
   // Generic query method

@@ -46,7 +46,7 @@ const walletAddressValidation = [
 const strategyValidation = [
   query('strategy')
     .optional()
-    .isIn(['arbitrage', 'memecoin', 'earlyGem', 'discovery', 'adaptive'])
+    .isIn(['copyTrade', 'volumeBreakout', 'smartMoney', 'arbitrage', 'memecoin', 'earlyGem', 'discovery', 'adaptive'])
     .withMessage('Invalid strategy type'),
   handleValidationErrors
 ];

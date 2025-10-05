@@ -180,20 +180,88 @@
                     </div>
                     <div class="strategies-list">
                         
+                        <!-- NEW PRODUCTION STRATEGIES -->
+                        <div class="strategy-item">
+                            <div class="strategy-header">
+                                <div class="strategy-info">
+                                    <span class="strategy-icon">📋</span>
+                                    <div>
+                                        <h4>Copy Trade</h4>
+                                        <p class="strategy-desc">Mirror successful wallets</p>
+                                    </div>
+                                </div>
+                                <div class="strategy-allocation">$2,500</div>
+                            </div>
+                            <div class="strategy-progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 25%" data-strategy="copyTrade"></div>
+                                </div>
+                                <div class="strategy-stats">
+                                    <span id="copy-trades" class="stat-small">0 trades</span>
+                                    <span id="copy-pnl" class="stat-small">$0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="strategy-item">
+                            <div class="strategy-header">
+                                <div class="strategy-info">
+                                    <span class="strategy-icon">📈</span>
+                                    <div>
+                                        <h4>Volume Breakout</h4>
+                                        <p class="strategy-desc">Detect unusual buying</p>
+                                    </div>
+                                </div>
+                                <div class="strategy-allocation">$2,000</div>
+                            </div>
+                            <div class="strategy-progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 20%" data-strategy="volumeBreakout"></div>
+                                </div>
+                                <div class="strategy-stats">
+                                    <span id="volume-trades" class="stat-small">0 trades</span>
+                                    <span id="volume-pnl" class="stat-small">$0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="strategy-item">
+                            <div class="strategy-header">
+                                <div class="strategy-info">
+                                    <span class="strategy-icon">🐋</span>
+                                    <div>
+                                        <h4>Smart Money</h4>
+                                        <p class="strategy-desc">Follow whale trades</p>
+                                    </div>
+                                </div>
+                                <div class="strategy-allocation">$2,000</div>
+                            </div>
+                            <div class="strategy-progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 20%" data-strategy="smartMoney"></div>
+                                </div>
+                                <div class="strategy-stats">
+                                    <span id="smart-trades" class="stat-small">0 trades</span>
+                                    <span id="smart-pnl" class="stat-small">$0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ORIGINAL STRATEGIES -->
                         <div class="strategy-item">
                             <div class="strategy-header">
                                 <div class="strategy-info">
                                     <span class="strategy-icon">🏦</span>
                                     <div>
-                                        <h4>Safe & Steady</h4>
-                                        <p class="strategy-desc">Low risk arbitrage trades</p>
+                                        <h4>Arbitrage</h4>
+                                        <p class="strategy-desc">Low risk DEX arbitrage</p>
                                     </div>
                                 </div>
-                                <div class="strategy-allocation">$4,000</div>
+                                <div class="strategy-allocation">$1,500</div>
                             </div>
                             <div class="strategy-progress">
                                 <div class="progress-bar">
-                                    <div class="progress-fill" style="width: 40%" data-strategy="arbitrage"></div>
+                                    <div class="progress-fill" style="width: 15%" data-strategy="arbitrage"></div>
                                 </div>
                                 <div class="strategy-stats">
                                     <span id="arb-trades" class="stat-small">0 trades</span>
@@ -207,15 +275,15 @@
                                 <div class="strategy-info">
                                     <span class="strategy-icon">🚀</span>
                                     <div>
-                                        <h4>High Risk Memecoins</h4>
-                                        <p class="strategy-desc">Big wins, big risks</p>
+                                        <h4>Memecoins</h4>
+                                        <p class="strategy-desc">High risk, high reward</p>
                                     </div>
                                 </div>
-                                <div class="strategy-allocation">$3,000</div>
+                                <div class="strategy-allocation">$1,500</div>
                             </div>
                             <div class="strategy-progress">
                                 <div class="progress-bar">
-                                    <div class="progress-fill" style="width: 30%" data-strategy="memecoin"></div>
+                                    <div class="progress-fill" style="width: 15%" data-strategy="memecoin"></div>
                                 </div>
                                 <div class="strategy-stats">
                                     <span id="meme-trades" class="stat-small">0 trades</span>
@@ -233,37 +301,15 @@
                                         <p class="strategy-desc">New tokens before they pump</p>
                                     </div>
                                 </div>
-                                <div class="strategy-allocation">$2,000</div>
+                                <div class="strategy-allocation">$500</div>
                             </div>
                             <div class="strategy-progress">
                                 <div class="progress-bar">
-                                    <div class="progress-fill" style="width: 20%" data-strategy="earlyGem"></div>
+                                    <div class="progress-fill" style="width: 5%" data-strategy="earlyGem"></div>
                                 </div>
                                 <div class="strategy-stats">
                                     <span id="gem-trades" class="stat-small">0 trades</span>
                                     <span id="gem-pnl" class="stat-small">$0</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="strategy-item">
-                            <div class="strategy-header">
-                                <div class="strategy-info">
-                                    <span class="strategy-icon">🔍</span>
-                                    <div>
-                                        <h4>New Discoveries</h4>
-                                        <p class="strategy-desc">Testing new smart traders</p>
-                                    </div>
-                                </div>
-                                <div class="strategy-allocation">$1,000</div>
-                            </div>
-                            <div class="strategy-progress">
-                                <div class="progress-bar">
-                                    <div class="progress-fill" style="width: 10%" data-strategy="discovery"></div>
-                                </div>
-                                <div class="strategy-stats">
-                                    <span id="disc-trades" class="stat-small">0 trades</span>
-                                    <span id="disc-pnl" class="stat-small">$0</span>
                                 </div>
                             </div>
                         </div>

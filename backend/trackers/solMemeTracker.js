@@ -12,18 +12,12 @@ class SolMemeTracker {
     this.db = db;
     this.connection = null;
     this.rpcIndex = 0;
-    this.lastCheck = new Map();  // Changed to Map to prevent memory leak
-    this.maxCacheSize = 100;  // Limit cache size
-    this.mockMode = config.mockMode.enabled;
+    this.lastCheck = new Map();
+    this.maxCacheSize = 100;
   }
 
   async init() {
-    if (this.mockMode) {
-      console.log('  ⚠️  Solana tracker running in MOCK MODE');
-      return;
-    }
-
-    // Try to connect to Solana RPC
+    // Connect to Solana RPC - PRODUCTION MODE ONLY
     for (const rpc of config.rpc.solana) {
       try {
         this.connection = new Connection(rpc, 'confirmed');
@@ -35,28 +29,35 @@ class SolMemeTracker {
       }
     }
     
-    console.log('  ⚠️  All Solana RPCs failed, falling back to mock mode');
-    this.mockMode = true;
+    throw new Error('Failed to connect to any Solana RPC. Check your internet connection and RPC endpoints.');
   }
 
   /**
-   * Track multiple Solana wallets
+   * Track multiple Solana wallets - 1-MINUTE OPTIMIZED
    */
   async trackWallets(wallets) {
     const transactions = [];
 
-    for (const wallet of wallets) {
-      try {
-        const txs = await this.trackWallet(wallet);
-        transactions.push(...txs);
-        
-        // Add delay between wallet checks to avoid rate limits
-        // Solana has stricter rate limits, so we use 5 seconds
-        if (wallets.indexOf(wallet) < wallets.length - 1) {
-          await this.sleep(5000); // 5 second delay between wallets
+    // PARALLEL processing with controlled concurrency
+    // Solana RPC allows ~10 req/sec, batch in groups of 3
+    const batchSize = 3;
+    for (let i = 0; i < wallets.length; i += batchSize) {
+      const batch = wallets.slice(i, i + batchSize);
+      const results = await Promise.allSettled(
+        batch.map(wallet => this.trackWallet(wallet))
+      );
+
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled' && result.value) {
+          transactions.push(...result.value);
+        } else if (result.status === 'rejected') {
+          console.error(`  ❌ Error tracking ${batch[index].address}:`, result.reason);
         }
-      } catch (error) {
-        console.error(`  ❌ Error tracking ${wallet.address}:`, error.message);
+      });
+
+      // Small delay between batches
+      if (i + batchSize < wallets.length) {
+        await this.sleep(1000); // 1 second between batches
       }
     }
 
@@ -71,13 +72,9 @@ class SolMemeTracker {
   }
 
   /**
-   * Track a single Solana wallet
+   * Track a single Solana wallet - PRODUCTION ONLY
    */
   async trackWallet(wallet) {
-    if (this.mockMode) {
-      return this.generateMockTransactions(wallet);
-    }
-
     try {
       const publicKey = new PublicKey(wallet.address);
       
@@ -99,21 +96,23 @@ class SolMemeTracker {
         }
       }
 
-      // Process transactions
+      // Process transactions - PARALLEL for speed (Solana can handle it)
       const processed = [];
-      for (const sig of newSignatures) {
-        const tx = await this.getTransaction(sig.signature);
-        if (tx) {
-          const processedTx = await this.processTransaction(tx, wallet, sig);
+      
+      // Fetch all transactions in parallel (Solana RPC is fast)
+      const txResults = await Promise.allSettled(
+        newSignatures.map(sig => this.getTransaction(sig.signature))
+      );
+      
+      // Process sequentially to avoid database race conditions
+      for (let i = 0; i < txResults.length; i++) {
+        const result = txResults[i];
+        if (result.status === 'fulfilled' && result.value) {
+          const processedTx = await this.processTransaction(result.value, wallet, newSignatures[i]);
           if (processedTx) {
             await this.db.addTransaction(processedTx);
             processed.push(processedTx);
           }
-        }
-        
-        // Add small delay between transaction fetches to avoid rate limits
-        if (newSignatures.indexOf(sig) < newSignatures.length - 1) {
-          await this.sleep(1000); // 1 second delay between transaction fetches
         }
       }
 
@@ -271,16 +270,9 @@ class SolMemeTracker {
   }
 
   /**
-   * Get wallet data
+   * Get wallet data - PRODUCTION ONLY
    */
   async getWalletData(address) {
-    if (this.mockMode) {
-      return {
-        balance: Math.random() * 100,
-        transactions: []
-      };
-    }
-
     try {
       const publicKey = new PublicKey(address);
       const balance = await this.connection.getBalance(publicKey);
@@ -302,44 +294,6 @@ class SolMemeTracker {
   async getTokenPrice(tokenAddress) {
     // In production, integrate with Jupiter, Birdeye, or similar
     return Math.random() * 10;
-  }
-
-  /**
-   * Generate mock transactions for testing
-   */
-  generateMockTransactions(wallet) {
-    const count = Math.random() < 0.7 ? Math.floor(Math.random() * 4) : 0;
-    const transactions = [];
-    
-    const memecoins = ['BONK', 'WIF', 'POPCAT', 'MYRO', 'SAMO', 'COPE'];
-
-    for (let i = 0; i < count; i++) {
-      const isBuy = Math.random() > 0.5;
-      
-      transactions.push({
-        wallet_address: wallet.address,
-        chain: 'solana',
-        tx_hash: Array(64).fill(0).map(() => 
-          'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[
-            Math.floor(Math.random() * 62)
-          ]
-        ).join(''),
-        token_address: Array(44).fill(0).map(() => 
-          'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[
-            Math.floor(Math.random() * 62)
-          ]
-        ).join(''),
-        token_symbol: memecoins[Math.floor(Math.random() * memecoins.length)],
-        action: isBuy ? 'buy' : 'sell',
-        amount: Math.random() * 1000000,
-        price_usd: Math.random() * 0.01,
-        total_value_usd: Math.random() * 1000,
-        timestamp: new Date().toISOString(),
-        block_number: 200000000 + Math.floor(Math.random() * 10000)
-      });
-    }
-
-    return transactions;
   }
 }
 

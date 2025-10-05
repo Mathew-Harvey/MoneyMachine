@@ -185,10 +185,16 @@ function updateWinRate() {
     document.getElementById('wallet-count').textContent = dashboardData.allWallets?.length || 30;
 }
 
-// Update strategies
+// Update strategies - ALL 7 STRATEGIES
 function updateStrategies() {
     const breakdown = dashboardData.strategyBreakdown || {};
     
+    // New production strategies
+    updateStrategy('copyTrade', 'copy', breakdown.copyTrade || {});
+    updateStrategy('volumeBreakout', 'volume', breakdown.volumeBreakout || {});
+    updateStrategy('smartMoney', 'smart', breakdown.smartMoney || {});
+    
+    // Original strategies
     updateStrategy('arbitrage', 'arb', breakdown.arbitrage || {});
     updateStrategy('memecoin', 'meme', breakdown.memecoin || {});
     updateStrategy('earlyGem', 'gem', breakdown.earlyGem || {});
@@ -577,6 +583,9 @@ function formatTimeAgo(timestamp) {
 
 function getStrategyName(strategy) {
     const names = {
+        copyTrade: 'Copy Trade',
+        volumeBreakout: 'Volume Breakout',
+        smartMoney: 'Smart Money',
         arbitrage: 'Safe & Steady',
         memecoin: 'High Risk',
         earlyGem: 'Early Gems',

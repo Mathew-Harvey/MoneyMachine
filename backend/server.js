@@ -152,10 +152,11 @@ async function initializeSystems() {
 function startBackgroundJobs() {
   logger.info('Starting background jobs');
   
-  const trackingInterval = process.env.TRACKING_INTERVAL || 10;
+  // PRODUCTION OPTIMIZED: 1-minute tracking with smart batching
+  const trackingInterval = process.env.TRACKING_INTERVAL || 1;  // Changed to 1 minute
   const discoveryInterval = process.env.DISCOVERY_INTERVAL || 6;
   const performanceInterval = process.env.PERFORMANCE_UPDATE_INTERVAL || 15;
-  const positionInterval = process.env.POSITION_MANAGEMENT_INTERVAL || 5;
+  const positionInterval = process.env.POSITION_MANAGEMENT_INTERVAL || 2;  // Faster position checks
   
   // Track wallets
   cron.schedule(`*/${trackingInterval} * * * *`, async () => {
@@ -251,9 +252,9 @@ app.get('/api/dashboard', async (req, res) => {
     const openTrades = await db.getOpenTrades();
     const discoveredWallets = await db.getDiscoveredWallets(false);
     
-    // Calculate strategy breakdown
+    // Calculate strategy breakdown - ALL STRATEGIES
     const strategyBreakdown = {};
-    const strategies = ['arbitrage', 'memecoin', 'earlyGem', 'discovery'];
+    const strategies = ['copyTrade', 'volumeBreakout', 'smartMoney', 'arbitrage', 'memecoin', 'earlyGem', 'discovery'];
     
     for (const strategy of strategies) {
       const trades = await db.query(

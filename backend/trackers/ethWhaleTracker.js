@@ -13,18 +13,12 @@ class EthWhaleTracker {
     this.db = db;
     this.provider = null;
     this.rpcIndex = 0;
-    this.lastCheck = new Map();  // Changed to Map to prevent memory leak
-    this.maxCacheSize = 100;  // Limit cache size
-    this.mockMode = config.mockMode.enabled;
+    this.lastCheck = new Map();
+    this.maxCacheSize = 100;
   }
 
   async init() {
-    if (this.mockMode) {
-      console.log('  ⚠️  Ethereum tracker running in MOCK MODE');
-      return;
-    }
-
-    // Try to connect to an Ethereum RPC
+    // Connect to Ethereum RPC - PRODUCTION MODE ONLY
     for (const rpc of config.rpc.ethereum) {
       try {
         this.provider = new ethers.JsonRpcProvider(rpc);
@@ -36,29 +30,28 @@ class EthWhaleTracker {
       }
     }
     
-    console.log('  ⚠️  All Ethereum RPCs failed, falling back to mock mode');
-    this.mockMode = true;
+    throw new Error('Failed to connect to any Ethereum RPC. Check your internet connection and RPC endpoints.');
   }
 
   /**
-   * Track multiple Ethereum wallets
+   * Track multiple Ethereum wallets - 1-MINUTE OPTIMIZED
    */
   async trackWallets(wallets) {
     const transactions = [];
 
-    for (const wallet of wallets) {
-      try {
-        const txs = await this.trackWallet(wallet);
-        transactions.push(...txs);
-        
-        // Add delay between wallet checks to avoid rate limits
-        if (wallets.indexOf(wallet) < wallets.length - 1) {
-          await this.sleep(2000); // 2 second delay between wallets
-        }
-      } catch (error) {
-        console.error(`  ❌ Error tracking ${wallet.address}:`, error.message);
+    // PARALLEL processing with Promise.allSettled for speed
+    // Etherscan V2 allows 5 requests/second
+    const results = await Promise.allSettled(
+      wallets.map(wallet => this.trackWallet(wallet))
+    );
+
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled' && result.value) {
+        transactions.push(...result.value);
+      } else if (result.status === 'rejected') {
+        console.error(`  ❌ Error tracking ${wallets[index].address}:`, result.reason);
       }
-    }
+    });
 
     return transactions;
   }
@@ -71,13 +64,9 @@ class EthWhaleTracker {
   }
 
   /**
-   * Track a single Ethereum wallet
+   * Track a single Ethereum wallet - PRODUCTION ONLY
    */
   async trackWallet(wallet) {
-    if (this.mockMode) {
-      return this.generateMockTransactions(wallet);
-    }
-
     try {
       // Get recent transactions using Etherscan API (free tier)
       const lastBlock = this.lastCheck.get(wallet.address) || await this.getRecentBlock();
@@ -217,16 +206,9 @@ class EthWhaleTracker {
   }
 
   /**
-   * Get wallet data
+   * Get wallet data - PRODUCTION ONLY
    */
   async getWalletData(address) {
-    if (this.mockMode) {
-      return {
-        balance: Math.random() * 100,
-        transactions: []
-      };
-    }
-
     const balance = await this.provider.getBalance(address);
     return {
       balance: ethers.formatEther(balance),
@@ -246,48 +228,13 @@ class EthWhaleTracker {
    * Get recent block number
    */
   async getRecentBlock() {
-    if (this.mockMode) {
-      return 18000000;
-    }
-    
     const currentBlock = await this.provider.getBlockNumber();
     
     // On first run for a wallet, look back further to get historical data
-    // This populates the activity feed with initial transactions
     const firstRun = this.lastCheck.size === 0;
     const blocksToLookBack = firstRun ? 50000 : 1000; // ~7 days vs ~4 hours
     
     return currentBlock - blocksToLookBack;
-  }
-
-  /**
-   * Generate mock transactions for testing
-   */
-  generateMockTransactions(wallet) {
-    // Randomly generate 0-2 transactions (increased probability for testing)
-    const count = Math.random() < 0.7 ? Math.floor(Math.random() * 3) : 0;
-    const transactions = [];
-
-    for (let i = 0; i < count; i++) {
-      const isBuy = Math.random() > 0.5;
-      const tokens = ['USDC', 'USDT', 'DAI', 'WETH', 'WBTC'];
-      
-      transactions.push({
-        wallet_address: wallet.address,
-        chain: 'ethereum',
-        tx_hash: '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join(''),
-        token_address: '0x' + Array(40).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join(''),
-        token_symbol: tokens[Math.floor(Math.random() * tokens.length)],
-        action: isBuy ? 'buy' : 'sell',
-        amount: Math.random() * 10000,
-        price_usd: Math.random() * 5,
-        total_value_usd: Math.random() * 5000,
-        timestamp: new Date().toISOString(),
-        block_number: 18000000 + Math.floor(Math.random() * 10000)
-      });
-    }
-
-    return transactions;
   }
 }
 

@@ -14,18 +14,12 @@ class BaseGemTracker {
     this.chain = chain;
     this.provider = null;
     this.rpcIndex = 0;
-    this.lastCheck = new Map();  // Changed to Map to prevent memory leak
-    this.maxCacheSize = 100;  // Limit cache size
-    this.mockMode = config.mockMode.enabled;
+    this.lastCheck = new Map();
+    this.maxCacheSize = 100;
   }
 
   async init() {
-    if (this.mockMode) {
-      console.log(`  ⚠️  ${this.chain} tracker running in MOCK MODE`);
-      return;
-    }
-
-    // Try to connect to RPC
+    // Connect to RPC - PRODUCTION MODE ONLY
     const rpcEndpoints = config.rpc[this.chain];
     for (const rpc of rpcEndpoints) {
       try {
@@ -38,29 +32,28 @@ class BaseGemTracker {
       }
     }
     
-    console.log(`  ⚠️  All ${this.chain} RPCs failed, falling back to mock mode`);
-    this.mockMode = true;
+    throw new Error(`Failed to connect to any ${this.chain} RPC. Check your internet connection and RPC endpoints.`);
   }
 
   /**
-   * Track multiple wallets
+   * Track multiple wallets - 1-MINUTE OPTIMIZED
    */
   async trackWallets(wallets) {
     const transactions = [];
 
-    for (const wallet of wallets) {
-      try {
-        const txs = await this.trackWallet(wallet);
-        transactions.push(...txs);
-        
-        // Add delay between wallet checks to avoid rate limits
-        if (wallets.indexOf(wallet) < wallets.length - 1) {
-          await this.sleep(2000); // 2 second delay between wallets
-        }
-      } catch (error) {
-        console.error(`  ❌ Error tracking ${wallet.address}:`, error.message);
+    // PARALLEL processing with Promise.allSettled for speed
+    // Etherscan V2 allows 5 requests/second for all EVM chains
+    const results = await Promise.allSettled(
+      wallets.map(wallet => this.trackWallet(wallet))
+    );
+
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled' && result.value) {
+        transactions.push(...result.value);
+      } else if (result.status === 'rejected') {
+        console.error(`  ❌ Error tracking ${wallets[index].address}:`, result.reason);
       }
-    }
+    });
 
     return transactions;
   }
@@ -73,14 +66,10 @@ class BaseGemTracker {
   }
 
   /**
-   * Track a single wallet
+   * Track a single wallet - PRODUCTION ONLY
    */
   async trackWallet(wallet) {
-    if (this.mockMode) {
-      return this.generateMockTransactions(wallet);
-    }
-
-    try {
+    try{
       const lastBlock = this.lastCheck.get(wallet.address) || await this.getRecentBlock();
       const transactions = await this.getWalletTransactions(wallet.address, lastBlock);
       
@@ -234,16 +223,9 @@ class BaseGemTracker {
   }
 
   /**
-   * Get wallet data
+   * Get wallet data - PRODUCTION ONLY
    */
   async getWalletData(address) {
-    if (this.mockMode) {
-      return {
-        balance: Math.random() * 10,
-        transactions: []
-      };
-    }
-
     const balance = await this.provider.getBalance(address);
     return {
       balance: ethers.formatEther(balance),
@@ -260,13 +242,9 @@ class BaseGemTracker {
   }
 
   /**
-   * Get recent block
+   * Get recent block - PRODUCTION ONLY
    */
   async getRecentBlock() {
-    if (this.mockMode) {
-      return this.chain === 'base' ? 5000000 : 150000000;
-    }
-    
     const currentBlock = await this.provider.getBlockNumber();
     
     // On first run for a wallet, look back further to get historical data
@@ -274,40 +252,6 @@ class BaseGemTracker {
     const blocksToLookBack = firstRun ? 100000 : 2000; // ~14 days vs ~8 hours
     
     return currentBlock - blocksToLookBack;
-  }
-
-  /**
-   * Generate mock transactions
-   */
-  generateMockTransactions(wallet) {
-    const count = Math.random() < 0.7 ? Math.floor(Math.random() * 3) : 0;
-    const transactions = [];
-    
-    const newTokens = ['NEWCOIN', 'MOONCOIN', 'ALPHAGEM', 'EARLYBIRD', 'GEM'];
-
-    for (let i = 0; i < count; i++) {
-      const isBuy = Math.random() > 0.4; // More buys than sells for gem hunters
-      
-      transactions.push({
-        wallet_address: wallet.address,
-        chain: this.chain,
-        tx_hash: '0x' + Array(64).fill(0).map(() => 
-          Math.floor(Math.random() * 16).toString(16)
-        ).join(''),
-        token_address: '0x' + Array(40).fill(0).map(() => 
-          Math.floor(Math.random() * 16).toString(16)
-        ).join(''),
-        token_symbol: newTokens[Math.floor(Math.random() * newTokens.length)],
-        action: isBuy ? 'buy' : 'sell',
-        amount: Math.random() * 50000,
-        price_usd: Math.random() * 0.1,
-        total_value_usd: Math.random() * 500,
-        timestamp: new Date().toISOString(),
-        block_number: (this.chain === 'base' ? 5000000 : 150000000) + Math.floor(Math.random() * 10000)
-      });
-    }
-
-    return transactions;
   }
 }
 

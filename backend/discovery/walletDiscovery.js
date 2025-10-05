@@ -18,7 +18,6 @@ class WalletDiscovery {
     this.db = db;
     this.scorer = new WalletScoring(db);
     this.clusterAnalysis = new ClusterAnalysis(db);
-    this.mockMode = config.mockMode.enabled;
   }
 
   /**
@@ -93,13 +92,9 @@ class WalletDiscovery {
   }
 
   /**
-   * Find tokens that have pumped significantly
+   * Find tokens that have pumped significantly - PRODUCTION ONLY
    */
   async findPumpingTokens() {
-    if (this.mockMode) {
-      return this.generateMockPumpingTokens();
-    }
-
     try {
       // Query tokens from database that have significant price movement
       const lookbackDate = new Date();
@@ -127,18 +122,14 @@ class WalletDiscovery {
       return tokens;
     } catch (error) {
       console.error('Error finding pumping tokens:', error.message);
-      return this.generateMockPumpingTokens();
+      return []; // Return empty array instead of mock data
     }
   }
 
   /**
-   * Find wallets that bought tokens early
+   * Find wallets that bought tokens early - PRODUCTION ONLY
    */
   async findEarlyBuyers(tokens) {
-    if (this.mockMode) {
-      return this.generateMockEarlyBuyers();
-    }
-
     const earlyBuyers = new Set();
     
     for (const token of tokens) {
@@ -323,9 +314,14 @@ class WalletDiscovery {
     };
   }
 
-  /**
-   * Generate mock pumping tokens for testing
-   */
+}
+
+module.exports = WalletDiscovery;
+
+/**
+ * REMOVED: Mock mode functions - production only
+ */
+/*
   generateMockPumpingTokens() {
     const tokens = [];
     const chains = ['ethereum', 'solana', 'base', 'arbitrum'];

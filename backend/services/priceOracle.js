@@ -24,7 +24,7 @@ class PriceOracle {
   }
 
   /**
-   * Get token price with fallback sources
+   * Get token price with fallback sources - PRODUCTION MODE
    */
   async getPrice(tokenAddress, chain = 'ethereum') {
     try {
@@ -32,11 +32,6 @@ class PriceOracle {
       const cached = this.getFromCache(tokenAddress, chain);
       if (cached) {
         return cached;
-      }
-
-      // In mock mode, generate realistic prices
-      if (config.mockMode.enabled) {
-        return this.getMockPrice(tokenAddress, chain);
       }
 
       // Try multiple sources in order
@@ -57,13 +52,14 @@ class PriceOracle {
         price = await this.getPriceFromDex(tokenAddress, chain);
       }
 
-      // 4. Fallback to mock if all else fails
+      // 4. Fallback: Return null to signal no price available
+      // Strategies should handle this gracefully
       if (!price) {
-        logger.warn('All price sources failed, using mock price', {
+        logger.debug('No price data available for token', {
           tokenAddress,
           chain
         });
-        price = this.getMockPrice(tokenAddress, chain);
+        return null; // Let strategies decide how to handle
       }
 
       // Cache the result
@@ -78,7 +74,7 @@ class PriceOracle {
         tokenAddress,
         chain
       });
-      return this.getMockPrice(tokenAddress, chain);
+      return null; // Return null instead of mock
     }
   }
 
@@ -206,18 +202,59 @@ class PriceOracle {
   }
 
   /**
-   * Get price from Uniswap V3
+   * Get price from Uniswap V3 (or equivalent DEX)
    */
   async getPriceFromUniswap(tokenAddress, chain) {
     try {
-      // This would require implementing Uniswap V3 pool queries
-      // Simplified version - in production, use Uniswap SDK or direct pool queries
-      logger.debug('Uniswap price fetch not fully implemented', {
-        tokenAddress,
-        chain
-      });
+      // Try DexScreener API (works for all chains, free tier)
+      await this.rateLimitWait();
+      
+      const response = await axios.get(
+        `https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`,
+        { timeout: 10000 }
+      );
+
+      if (response.data && response.data.pairs && response.data.pairs.length > 0) {
+        // Get the pair with most liquidity on the correct chain
+        const chainMatch = {
+          ethereum: 'ethereum',
+          base: 'base',
+          arbitrum: 'arbitrum',
+          solana: 'solana'
+        };
+        
+        const relevantPairs = response.data.pairs.filter(p => 
+          p.chainId === chainMatch[chain] || p.chainId === chain
+        );
+        
+        if (relevantPairs.length > 0) {
+          // Sort by liquidity and take highest
+          relevantPairs.sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0));
+          const bestPair = relevantPairs[0];
+          
+          logger.info('Price fetched from DexScreener', {
+            tokenAddress,
+            chain,
+            price: bestPair.priceUsd,
+            liquidity: bestPair.liquidity?.usd
+          });
+          
+          return {
+            price: parseFloat(bestPair.priceUsd),
+            source: 'dexscreener',
+            liquidity: bestPair.liquidity?.usd || 0,
+            volume24h: bestPair.volume?.h24 || 0,
+            timestamp: Date.now()
+          };
+        }
+      }
+
       return null;
     } catch (error) {
+      logger.debug('DexScreener price fetch failed', {
+        error: error.message,
+        tokenAddress
+      });
       return null;
     }
   }

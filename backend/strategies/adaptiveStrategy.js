@@ -1,4 +1,7 @@
 const config = require('../../config/config');
+const CopyTradeStrategy = require('./copyTradeStrategy');
+const VolumeBreakoutStrategy = require('./volumeBreakoutStrategy');
+const SmartMoneyStrategy = require('./smartMoneyStrategy');
 const ArbitrageStrategy = require('./arbitrageStrategy');
 const MemeStrategy = require('./memeStrategy');
 const EarlyGemStrategy = require('./earlyGemStrategy');
@@ -18,7 +21,10 @@ class AdaptiveStrategy {
     this.db = db;
     this.name = 'adaptive';
     
-    // Initialize sub-strategies
+    // Initialize ALL sub-strategies
+    this.copyTradeStrategy = new CopyTradeStrategy(db);
+    this.volumeBreakoutStrategy = new VolumeBreakoutStrategy(db);
+    this.smartMoneyStrategy = new SmartMoneyStrategy(db);
     this.arbitrageStrategy = new ArbitrageStrategy(db);
     this.memeStrategy = new MemeStrategy(db);
     this.earlyGemStrategy = new EarlyGemStrategy(db);
@@ -64,13 +70,34 @@ class AdaptiveStrategy {
   async selectStrategy(transaction, wallet) {
     const candidates = [];
 
-    // Get recent performance of each strategy
+    // Get recent performance of ALL strategies
+    const copyPerf = await this.copyTradeStrategy.getPerformance();
+    const volumePerf = await this.volumeBreakoutStrategy.getPerformance();
+    const smartPerf = await this.smartMoneyStrategy.getPerformance();
     const arbPerf = await this.arbitrageStrategy.getPerformance();
     const memePerf = await this.memeStrategy.getPerformance();
     const gemPerf = await this.earlyGemStrategy.getPerformance();
 
     // Score each strategy for this trade
     const strategies = [
+      {
+        name: 'copyTrade',
+        strategy: this.copyTradeStrategy,
+        performance: copyPerf,
+        suitability: this.calculateSuitability(transaction, wallet, 'copyTrade')
+      },
+      {
+        name: 'volumeBreakout',
+        strategy: this.volumeBreakoutStrategy,
+        performance: volumePerf,
+        suitability: this.calculateSuitability(transaction, wallet, 'volumeBreakout')
+      },
+      {
+        name: 'smartMoney',
+        strategy: this.smartMoneyStrategy,
+        performance: smartPerf,
+        suitability: this.calculateSuitability(transaction, wallet, 'smartMoney')
+      },
       {
         name: 'arbitrage',
         strategy: this.arbitrageStrategy,
@@ -120,9 +147,30 @@ class AdaptiveStrategy {
       score += 30;
     }
 
+    // CopyTrade suitability - always applicable
+    if (strategyType === 'copyTrade') {
+      if (wallet.win_rate >= 0.55 && transaction.total_value_usd >= 100) {
+        score += 25;
+      }
+    }
+
+    // VolumeBreakout suitability
+    if (strategyType === 'volumeBreakout') {
+      if (transaction.total_value_usd >= 500) {
+        score += 20;
+      }
+    }
+
+    // SmartMoney suitability
+    if (strategyType === 'smartMoney') {
+      if (transaction.total_value_usd >= 5000) {
+        score += 30; // High score for whale trades
+      }
+    }
+
     // Arbitrage suitability
     if (strategyType === 'arbitrage') {
-      if (wallet.win_rate >= 0.60 && transaction.total_value_usd >= 1000) {
+      if (wallet.win_rate >= 0.55 && transaction.total_value_usd >= 500) {
         score += 20;
       }
       if (transaction.chain === 'ethereum') {
@@ -144,7 +192,7 @@ class AdaptiveStrategy {
 
     // Early gem suitability
     if (strategyType === 'earlyGem') {
-      if (wallet.win_rate >= 0.70) {
+      if (wallet.win_rate >= 0.60) {
         score += 25;
       }
       if (transaction.chain === 'base' || transaction.chain === 'arbitrum') {
@@ -182,13 +230,17 @@ class AdaptiveStrategy {
   async adaptPositionSize(baseSize, strategyName, wallet) {
     // Get recent strategy performance
     let strategyPerf;
-    if (strategyName === 'arbitrage') {
-      strategyPerf = await this.arbitrageStrategy.getPerformance();
-    } else if (strategyName === 'memecoin') {
-      strategyPerf = await this.memeStrategy.getPerformance();
-    } else {
-      strategyPerf = await this.earlyGemStrategy.getPerformance();
-    }
+    const strategyMap = {
+      'copyTrade': this.copyTradeStrategy,
+      'volumeBreakout': this.volumeBreakoutStrategy,
+      'smartMoney': this.smartMoneyStrategy,
+      'arbitrage': this.arbitrageStrategy,
+      'memecoin': this.memeStrategy,
+      'earlyGem': this.earlyGemStrategy
+    };
+    
+    const strategy = strategyMap[strategyName] || this.copyTradeStrategy;
+    strategyPerf = await strategy.getPerformance();
 
     let multiplier = 1.0;
 
@@ -222,19 +274,16 @@ class AdaptiveStrategy {
    */
   async getExitStrategy(trade, currentPrice) {
     // Determine which strategy to use based on trade
-    let strategy;
+    const strategyMap = {
+      'copyTrade': this.copyTradeStrategy,
+      'volumeBreakout': this.volumeBreakoutStrategy,
+      'smartMoney': this.smartMoneyStrategy,
+      'arbitrage': this.arbitrageStrategy,
+      'memecoin': this.memeStrategy,
+      'earlyGem': this.earlyGemStrategy
+    };
     
-    if (trade.strategy_used === 'arbitrage') {
-      strategy = this.arbitrageStrategy;
-    } else if (trade.strategy_used === 'memecoin') {
-      strategy = this.memeStrategy;
-    } else if (trade.strategy_used === 'earlyGem') {
-      strategy = this.earlyGemStrategy;
-    } else {
-      // Default to conservative exit
-      strategy = this.arbitrageStrategy;
-    }
-
+    const strategy = strategyMap[trade.strategy_used] || this.copyTradeStrategy;
     return strategy.getExitStrategy(trade, currentPrice);
   }
 
@@ -279,6 +328,9 @@ class AdaptiveStrategy {
    */
   async getPerformance() {
     const strategies = {
+      copyTrade: await this.copyTradeStrategy.getPerformance(),
+      volumeBreakout: await this.volumeBreakoutStrategy.getPerformance(),
+      smartMoney: await this.smartMoneyStrategy.getPerformance(),
       arbitrage: await this.arbitrageStrategy.getPerformance(),
       memecoin: await this.memeStrategy.getPerformance(),
       earlyGem: await this.earlyGemStrategy.getPerformance()

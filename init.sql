@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS paper_trades (
     exit_value_usd REAL,
     pnl REAL DEFAULT 0.0,
     pnl_percentage REAL DEFAULT 0.0,
+    peak_price REAL,
     status TEXT DEFAULT 'open',
     entry_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     exit_time DATETIME,

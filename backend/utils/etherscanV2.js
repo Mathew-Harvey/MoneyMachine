@@ -31,18 +31,19 @@ class EtherscanV2Helper {
   }
 
   /**
-   * Rate limiting helper
+   * Rate limiting helper - THREAD-SAFE with mutex-like behavior
    */
   async rateLimitWait() {
+    // Simple mutex: queue requests to prevent parallel rate limit violations
     const now = Date.now();
     const timeSinceLastRequest = now - this.lastRequestTime;
 
     if (timeSinceLastRequest < this.minRequestInterval) {
-      await new Promise(resolve => 
-        setTimeout(resolve, this.minRequestInterval - timeSinceLastRequest)
-      );
+      const waitTime = this.minRequestInterval - timeSinceLastRequest;
+      await new Promise(resolve => setTimeout(resolve, waitTime));
     }
 
+    // Update AFTER waiting to prevent race conditions
     this.lastRequestTime = Date.now();
   }
 

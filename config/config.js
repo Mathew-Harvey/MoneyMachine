@@ -60,65 +60,99 @@ module.exports = {
     jwtSecret: process.env.JWT_SECRET || 'change-this-in-production'
   },
 
-  // Strategy parameters
+  // Strategy parameters - PRODUCTION OPTIMIZED
   strategies: {
-    arbitrage: {
-      allocation: 4000,
-      maxPerTrade: 500,
-      copyThreshold: 1000, // min trade size to copy (in USD)
-      stopLoss: 0.05, // 5%
-      takeProfit: 0.20, // 20%
-      maxConcurrentTrades: 10,
-      minWinRate: 0.60,
-      trailingStop: 0.10 // 10% trailing stop after hitting 15% profit
+    // Simple copy trading - mirror successful wallets
+    copyTrade: {
+      allocation: 2500,
+      maxPerTrade: 250,
+      minTradeSize: 100, // copy trades over $100
+      minWalletWinRate: 0.55, // follow wallets with 55%+ win rate
+      copyPercentage: 0.1, // copy 10% of their trade size
+      stopLoss: 0.15, // 15%
+      takeProfit: 0.50, // 50%
+      maxConcurrentTrades: 20,
+      trailingStop: 0.15
     },
-    memecoin: {
-      allocation: 3000,
-      maxPerTrade: 100,
-      copyThreshold: 2, // need 2 wallets buying same token within timeframe
-      copyTimeWindow: 3600, // 1 hour in seconds
-      stopLoss: 0.50, // 50%
-      takeProfit: [
-        { at: 2, sell: 0.5 },   // sell 50% at 2x
-        { at: 10, sell: 0.3 },  // sell 30% at 10x
-        { at: 100, sell: 0.2 }  // sell rest at 100x
-      ],
-      maxHoldTime: 72, // hours
-      maxConcurrentTrades: 15,
-      minWinRate: 0.40
-    },
-    earlyGem: {
+    
+    // Volume breakout - detect unusual buying activity
+    volumeBreakout: {
       allocation: 2000,
       maxPerTrade: 200,
-      tokenAgeLimit: 24, // hours
-      stopLoss: 0.30, // 30%
-      takeProfit: 3, // 3x
-      onlyFollowWalletsWithWinRate: 0.7,
-      maxConcurrentTrades: 10,
-      minLiquidity: 50000 // minimum liquidity in USD
+      volumeMultiplier: 3, // 3x normal volume
+      minBuyerCount: 3, // at least 3 different buyers
+      timeWindow: 7200, // 2 hours
+      stopLoss: 0.20,
+      takeProfit: 0.75,
+      maxConcurrentTrades: 15
     },
-    discovery: {
-      allocation: 1000,
-      maxPerTrade: 50,
-      testTrades: 5, // number of trades to observe before promotion
-      stopLoss: 0.40,
-      takeProfit: 2,
-      maxConcurrentTrades: 5
+    
+    // Smart money - follow whales and high-value traders
+    smartMoney: {
+      allocation: 2000,
+      maxPerTrade: 300,
+      minTradeSize: 5000, // only copy large trades
+      minWalletBalance: 100000, // whales with $100k+
+      stopLoss: 0.10,
+      takeProfit: 0.40,
+      maxConcurrentTrades: 10,
+      trailingStop: 0.12
+    },
+    
+    // Arbitrage - RELAXED thresholds
+    arbitrage: {
+      allocation: 1500,
+      maxPerTrade: 300,
+      copyThreshold: 500, // REDUCED from 1000
+      stopLoss: 0.08,
+      takeProfit: 0.25,
+      maxConcurrentTrades: 10,
+      minWinRate: 0.55, // REDUCED from 0.60
+      trailingStop: 0.10
+    },
+    
+    // Memecoin - RELAXED coordination requirement
+    memecoin: {
+      allocation: 1500,
+      maxPerTrade: 150,
+      copyThreshold: 1, // REDUCED from 2 - copy even single buys
+      copyTimeWindow: 7200, // INCREASED to 2 hours
+      stopLoss: 0.50,
+      takeProfit: [
+        { at: 2, sell: 0.5 },
+        { at: 10, sell: 0.3 },
+        { at: 100, sell: 0.2 }
+      ],
+      maxHoldTime: 72,
+      maxConcurrentTrades: 20,
+      minWinRate: 0.35 // REDUCED from 0.40
+    },
+    
+    // Early gem - RELAXED requirements
+    earlyGem: {
+      allocation: 500,
+      maxPerTrade: 100,
+      tokenAgeLimit: 72, // INCREASED from 24 hours
+      stopLoss: 0.30,
+      takeProfit: 3,
+      onlyFollowWalletsWithWinRate: 0.60, // REDUCED from 0.70
+      maxConcurrentTrades: 10,
+      minLiquidity: 25000 // REDUCED from 50000
     }
   },
 
-  // Wallet discovery parameters
+  // Wallet discovery parameters - AGGRESSIVE for production
   discovery: {
     enabled: process.env.DISCOVERY_ENABLED !== 'false',
-    runInterval: 21600000, // run every 6 hours (in milliseconds) - reduced to avoid rate limits
-    dailyLimit: parseInt(process.env.DISCOVERY_DAILY_LIMIT) || 15, // max new wallets to discover per day (INCREASED for scaling)
-    minTradeCount: 15, // minimum historical trades to analyze (lowered to find more candidates)
-    minWinRate: 0.55, // minimum win rate to be considered (55% is still profitable)
-    lookbackDays: 30, // analyze last 30 days
-    minProfitability: 3000, // minimum profit in USD over lookback period (lowered to $3k)
-    pumpThreshold: 3, // tokens must have pumped >3x to be analyzed (lowered from 5x)
-    pumpTimeframe: 7, // days
-    earlyBuyThreshold: 0.25 // wallet must have bought in bottom 25% of price range (slightly more lenient)
+    runInterval: 21600000, // run every 6 hours
+    dailyLimit: parseInt(process.env.DISCOVERY_DAILY_LIMIT) || 25, // INCREASED for more discoveries
+    minTradeCount: 10, // REDUCED - less history required
+    minWinRate: 0.52, // REDUCED - 52% is still profitable
+    lookbackDays: 30,
+    minProfitability: 2000, // REDUCED to $2k
+    pumpThreshold: 2, // REDUCED to 2x (catches more opportunities)
+    pumpTimeframe: 14, // INCREASED to 14 days (longer window)
+    earlyBuyThreshold: 0.30 // INCREASED to bottom 30%
   },
 
   // Risk management
@@ -154,12 +188,11 @@ module.exports = {
     alertThreshold: 1000 // alert when trades over $1000 detected
   },
 
-  // Mock mode for testing (RECOMMENDED to start with this enabled)
-  // Public RPCs have strict rate limits - enable mock mode to test without API calls
+  // Production mode - using real APIs only
   mockMode: {
-    enabled: process.env.MOCK_MODE === 'true' || !process.env.MOCK_MODE, // Default to true if not set
-    generateTransactions: true,
-    transactionInterval: 30000 // generate mock tx every 30 seconds
+    enabled: false, // DISABLED for production
+    generateTransactions: false,
+    transactionInterval: 30000
   },
 
   // Chain-specific settings
