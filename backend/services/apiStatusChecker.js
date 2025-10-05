@@ -300,7 +300,7 @@ class APIStatusChecker {
       return {
         name: 'CoinGecko',
         status: 'connected',
-        hasApiKey,
+        hasApiKey: hasKey,
         connected: true,
         tier: hasKey ? 'Pro' : 'Free',
         rateLimit: hasKey ? '500 calls/minute' : '10-30 calls/minute',
@@ -311,7 +311,7 @@ class APIStatusChecker {
       return {
         name: 'CoinGecko',
         status: 'error',
-        hasApiKey,
+        hasApiKey: hasKey,
         connected: false,
         error: error.message
       };
