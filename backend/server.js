@@ -7,6 +7,7 @@ const morgan = require('morgan');
 const config = require('../config/config');
 const db = require('./database');
 const logger = require('./utils/logger');
+const apiStatusChecker = require('./services/apiStatusChecker');
 
 // Import middleware
 const { 
@@ -469,6 +470,29 @@ app.get('/api/wallets/activity', async (req, res) => {
     });
   } catch (error) {
     logger.error('Error fetching wallet activity', { error: error.message });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// API Connections Status - COMPREHENSIVE (NEW)
+app.get('/api/connections/status', async (req, res) => {
+  try {
+    logger.info('Checking API connections status');
+    const status = await apiStatusChecker.getAllStatus();
+    res.json(status);
+  } catch (error) {
+    logger.error('Error checking API connections', { error: error.message });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// API Connections Summary - Quick overview (NEW)
+app.get('/api/connections/summary', async (req, res) => {
+  try {
+    const summary = await apiStatusChecker.getStatusSummary();
+    res.json(summary);
+  } catch (error) {
+    logger.error('Error getting API connections summary', { error: error.message });
     res.status(500).json({ error: error.message });
   }
 });
