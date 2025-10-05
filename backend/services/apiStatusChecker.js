@@ -111,13 +111,15 @@ class APIStatusChecker {
     }
 
     try {
-      // Test API key with Ethereum mainnet
-      logger.debug('Testing Etherscan API key...');
-      const response = await axios.get('https://api.etherscan.io/api', {
+      // Test API key with Ethereum mainnet - V2 endpoint
+      logger.debug('Testing Etherscan V2 API key...');
+      const response = await axios.get('https://api.etherscan.io/v2/api', {
         params: {
+          chainid: 1,  // Ethereum mainnet
           module: 'account',
           action: 'balance',
           address: '0x0000000000000000000000000000000000000000',
+          tag: 'latest',
           apikey: config.apiKeys.etherscan
         },
         timeout: 10000
@@ -226,14 +228,16 @@ class APIStatusChecker {
       });
       
       if (error.response?.status === 401) {
+        const upgradeMessage = error.response?.data?.error_message || 'Unauthorized';
         return {
           name: 'Solscan',
-          status: 'error',
+          status: 'warning',
           hasApiKey: true,
           connected: false,
           chain: 'solana',
-          error: 'Invalid API key',
-          debug: 'HTTP 401: Unauthorized - Check if API key is correct'
+          error: 'API key needs upgrade',
+          debug: `HTTP 401: ${upgradeMessage}. Your API key works but has limited access. System will use public Solana RPC instead.`,
+          note: 'Not critical - Using free Solana RPC as fallback'
         };
       }
 
@@ -244,7 +248,8 @@ class APIStatusChecker {
         connected: false,
         chain: 'solana',
         error: error.message,
-        debug: `HTTP ${error.response?.status || 'timeout'}: ${error.response?.data?.message || error.message}`
+        debug: `HTTP ${error.response?.status || 'timeout'}: ${error.response?.data?.error_message || error.message}`,
+        note: 'Using free Solana RPC as fallback'
       };
     }
   }
@@ -364,8 +369,23 @@ class APIStatusChecker {
       logger.error('CoinGecko API check failed', { 
         error: error.message,
         status: error.response?.status,
+        data: error.response?.data,
         tier: hasKey ? 'Pro' : 'Free'
       });
+      
+      // If Pro API fails, fall back to free tier
+      if (hasKey && error.response?.status === 400) {
+        return {
+          name: 'CoinGecko',
+          status: 'warning',
+          hasApiKey: hasKey,
+          connected: false,
+          error: 'Pro API key invalid, using free tier',
+          tier: 'Free (fallback)',
+          debug: `Pro API failed with 400: ${error.response?.data?.error || error.message}. System will use free tier instead.`,
+          note: 'Not critical - DexScreener is primary price source'
+        };
+      }
       
       return {
         name: 'CoinGecko',
@@ -373,7 +393,8 @@ class APIStatusChecker {
         hasApiKey: hasKey,
         connected: false,
         error: error.message,
-        debug: `${hasKey ? 'Pro API' : 'Free API'} - HTTP ${error.response?.status || 'timeout'}: ${error.message}`
+        debug: `${hasKey ? 'Pro API' : 'Free API'} - HTTP ${error.response?.status || 'timeout'}: ${error.message}`,
+        note: 'Not critical - DexScreener is primary price source'
       };
     }
   }
