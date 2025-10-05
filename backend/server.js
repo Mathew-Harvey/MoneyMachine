@@ -252,24 +252,32 @@ app.get('/api/dashboard', async (req, res) => {
     const openTrades = await db.getOpenTrades();
     const discoveredWallets = await db.getDiscoveredWallets(false);
     
-    // Calculate strategy breakdown - ALL STRATEGIES
+    // Calculate strategy breakdown - ALL STRATEGIES (including open trades)
     const strategyBreakdown = {};
     const strategies = ['copyTrade', 'volumeBreakout', 'smartMoney', 'arbitrage', 'memecoin', 'earlyGem', 'discovery'];
     
     for (const strategy of strategies) {
-      const trades = await db.query(
-        'SELECT * FROM paper_trades WHERE strategy_used = ? AND status = \'closed\'',
+      // Get ALL trades (open and closed)
+      const allTrades = await db.query(
+        'SELECT * FROM paper_trades WHERE strategy_used = ?',
         [strategy]
       );
-      const pnl = trades.reduce((sum, t) => sum + (t.pnl || 0), 0);
-      const wins = trades.filter(t => t.pnl > 0).length;
+      
+      const closedTrades = allTrades.filter(t => t.status === 'closed');
+      const openTrades = allTrades.filter(t => t.status === 'open');
+      
+      // Calculate realized P&L from closed trades
+      const realizedPnl = closedTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+      const wins = closedTrades.filter(t => t.pnl > 0).length;
       
       strategyBreakdown[strategy] = {
-        trades: trades.length,
+        trades: allTrades.length,  // Total trades (open + closed)
+        openTrades: openTrades.length,
+        closedTrades: closedTrades.length,
         wins,
-        losses: trades.length - wins,
-        pnl,
-        winRate: trades.length > 0 ? wins / trades.length : 0
+        losses: closedTrades.length - wins,
+        pnl: realizedPnl,
+        winRate: closedTrades.length > 0 ? wins / closedTrades.length : 0
       };
     }
     

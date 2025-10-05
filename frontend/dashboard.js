@@ -203,6 +203,8 @@ function updateStrategies() {
 
 function updateStrategy(strategyName, prefix, data) {
     const trades = data.trades || 0;
+    const openTrades = data.openTrades || 0;
+    const closedTrades = data.closedTrades || 0;
     const pnl = data.pnl || 0;
     
     // Check if elements exist (may not exist for all strategies in UI)
@@ -210,7 +212,14 @@ function updateStrategy(strategyName, prefix, data) {
     const pnlEl = document.getElementById(`${prefix}-pnl`);
     
     if (tradesEl) {
-        tradesEl.textContent = `${trades} trades`;
+        // Show open trades count if there are any, otherwise show total
+        if (openTrades > 0 && closedTrades === 0) {
+            tradesEl.textContent = `${openTrades} open`;
+        } else if (openTrades > 0) {
+            tradesEl.textContent = `${openTrades} open • ${closedTrades} closed`;
+        } else {
+            tradesEl.textContent = `${trades} trades`;
+        }
     }
     
     if (pnlEl) {
