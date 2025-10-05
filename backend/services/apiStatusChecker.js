@@ -341,51 +341,82 @@ class APIStatusChecker {
       keyPrefix: config.apiKeys.coingecko ? config.apiKeys.coingecko.substring(0, 10) + '...' : 'none'
     });
 
+    // Try Pro API first if key exists
+    if (hasKey) {
+      try {
+        logger.debug('Testing CoinGecko Pro API...');
+        const response = await axios.get('https://pro-api.coingecko.com/api/v3/ping', {
+          params: { x_cg_pro_api_key: config.apiKeys.coingecko },
+          timeout: 10000
+        });
+
+        logger.info('CoinGecko Pro API validated successfully');
+        return {
+          name: 'CoinGecko',
+          status: 'connected',
+          hasApiKey: true,
+          connected: true,
+          tier: 'Pro',
+          rateLimit: '500 calls/minute',
+          critical: false,
+          note: 'Provides price data for major tokens'
+        };
+      } catch (proError) {
+        // Pro failed, try as demo key on free endpoint
+        logger.warn('CoinGecko Pro API failed, trying free endpoint with demo key', {
+          status: proError.response?.status,
+          error: proError.response?.data?.status?.error_message
+        });
+        
+        try {
+          // Try free endpoint (demo keys work here)
+          const freeResponse = await axios.get('https://api.coingecko.com/api/v3/ping', {
+            params: { x_cg_demo_api_key: config.apiKeys.coingecko },
+            timeout: 10000
+          });
+          
+          logger.info('CoinGecko Demo API validated successfully');
+          return {
+            name: 'CoinGecko',
+            status: 'connected',
+            hasApiKey: true,
+            connected: true,
+            tier: 'Demo',
+            rateLimit: '30 calls/minute',
+            critical: false,
+            note: 'Using demo key (not Pro). Upgrade to Pro for higher limits.',
+            debug: 'Demo key detected - using free endpoint'
+          };
+        } catch (demoError) {
+          // Both failed, fall back to completely free
+          logger.warn('CoinGecko demo key also failed, using free tier');
+        }
+      }
+    }
+
+    // Free tier (no key)
     try {
-      const url = hasKey
-        ? 'https://pro-api.coingecko.com/api/v3/ping'
-        : 'https://api.coingecko.com/api/v3/ping';
-
-      const params = hasKey ? { x_cg_pro_api_key: config.apiKeys.coingecko } : {};
-
-      logger.debug(`Testing CoinGecko API (${hasKey ? 'Pro' : 'Free'})...`);
-      const response = await axios.get(url, {
-        params,
+      logger.debug('Testing CoinGecko Free API...');
+      const response = await axios.get('https://api.coingecko.com/api/v3/ping', {
         timeout: 10000
       });
 
-      logger.info('CoinGecko API validated successfully', { tier: hasKey ? 'Pro' : 'Free' });
+      logger.info('CoinGecko Free API validated successfully');
       return {
         name: 'CoinGecko',
         status: 'connected',
-        hasApiKey: hasKey,
+        hasApiKey: false,
         connected: true,
-        tier: hasKey ? 'Pro' : 'Free',
-        rateLimit: hasKey ? '500 calls/minute' : '10-30 calls/minute',
+        tier: 'Free',
+        rateLimit: '10-30 calls/minute',
         critical: false,
-        note: 'Provides price data for major tokens'
+        note: 'Using free tier. DexScreener is primary price source.'
       };
     } catch (error) {
-      logger.error('CoinGecko API check failed', { 
+      logger.error('CoinGecko API check failed completely', { 
         error: error.message,
-        status: error.response?.status,
-        data: error.response?.data,
-        tier: hasKey ? 'Pro' : 'Free'
+        status: error.response?.status
       });
-      
-      // If Pro API fails, fall back to free tier
-      if (hasKey && error.response?.status === 400) {
-        return {
-          name: 'CoinGecko',
-          status: 'warning',
-          hasApiKey: hasKey,
-          connected: false,
-          error: 'Pro API key invalid, using free tier',
-          tier: 'Free (fallback)',
-          debug: `Pro API failed with 400: ${error.response?.data?.error || error.message}. System will use free tier instead.`,
-          note: 'Not critical - DexScreener is primary price source'
-        };
-      }
       
       return {
         name: 'CoinGecko',
@@ -393,7 +424,8 @@ class APIStatusChecker {
         hasApiKey: hasKey,
         connected: false,
         error: error.message,
-        debug: `${hasKey ? 'Pro API' : 'Free API'} - HTTP ${error.response?.status || 'timeout'}: ${error.message}`,
+        tier: 'Failed',
+        debug: `All CoinGecko endpoints failed. HTTP ${error.response?.status || 'timeout'}: ${error.message}`,
         note: 'Not critical - DexScreener is primary price source'
       };
     }

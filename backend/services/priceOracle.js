@@ -86,9 +86,9 @@ class PriceOracle {
       await this.rateLimitWait();
 
       const platformId = this.getCoinGeckoPlatformId(chain);
-      const url = this.coinGeckoApiKey
-        ? `https://pro-api.coingecko.com/api/v3/simple/token_price/${platformId}`
-        : `https://api.coingecko.com/api/v3/simple/token_price/${platformId}`;
+      
+      // Always use free endpoint (demo keys work here, Pro keys don't)
+      const url = `https://api.coingecko.com/api/v3/simple/token_price/${platformId}`;
 
       const params = {
         contract_addresses: tokenAddress.toLowerCase(),
@@ -97,8 +97,9 @@ class PriceOracle {
         include_market_cap: true
       };
 
+      // Use demo key parameter if available (works on free endpoint)
       if (this.coinGeckoApiKey) {
-        params.x_cg_pro_api_key = this.coinGeckoApiKey;
+        params.x_cg_demo_api_key = this.coinGeckoApiKey;
       }
 
       const response = await axios.get(url, {
