@@ -90,8 +90,14 @@ class APIStatusChecker {
    */
   async checkEtherscan() {
     const hasKey = !!config.apiKeys.etherscan;
+    
+    logger.info('Checking Etherscan API', { 
+      hasKey, 
+      keyPrefix: config.apiKeys.etherscan ? config.apiKeys.etherscan.substring(0, 10) + '...' : 'none'
+    });
 
     if (!hasKey) {
+      logger.warn('Etherscan API key not found in config');
       return {
         name: 'Etherscan',
         status: 'not_configured',
@@ -99,12 +105,14 @@ class APIStatusChecker {
         connected: false,
         chains: ['ethereum', 'base', 'arbitrum'],
         critical: true,
-        note: 'Required for EVM transaction tracking'
+        note: 'Required for EVM transaction tracking',
+        debug: 'ETHERSCAN_API_KEY not set in environment'
       };
     }
 
     try {
       // Test API key with Ethereum mainnet
+      logger.debug('Testing Etherscan API key...');
       const response = await axios.get('https://api.etherscan.io/api', {
         params: {
           module: 'account',
@@ -112,10 +120,21 @@ class APIStatusChecker {
           address: '0x0000000000000000000000000000000000000000',
           apikey: config.apiKeys.etherscan
         },
-        timeout: 5000
+        timeout: 10000
       });
 
-      const connected = response.data.status === '1';
+      const connected = response.data.status === '1' || response.data.status === 1;
+      
+      if (!connected) {
+        logger.error('Etherscan API returned invalid response', { 
+          status: response.data.status, 
+          message: response.data.message,
+          result: response.data.result,
+          fullResponse: response.data
+        });
+      } else {
+        logger.info('Etherscan API key validated successfully');
+      }
 
       return {
         name: 'Etherscan',
@@ -125,9 +144,16 @@ class APIStatusChecker {
         chains: ['ethereum', 'base', 'arbitrum'],
         critical: true,
         rateLimit: '5 calls/second (with key)',
-        message: connected ? 'API key valid' : 'API key may be invalid'
+        message: connected ? 'API key valid' : `API error: ${response.data.message || 'Unknown'}`,
+        debug: connected ? undefined : `Status: ${response.data.status}, Message: ${response.data.message}, Result: ${response.data.result}`
       };
     } catch (error) {
+      logger.error('Etherscan API check failed', { 
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
       return {
         name: 'Etherscan',
         status: 'error',
@@ -135,7 +161,8 @@ class APIStatusChecker {
         connected: false,
         chains: ['ethereum', 'base', 'arbitrum'],
         critical: true,
-        error: error.message
+        error: error.message,
+        debug: `HTTP ${error.response?.status || 'timeout'}: ${error.response?.data?.message || error.message}`
       };
     }
   }
@@ -145,8 +172,14 @@ class APIStatusChecker {
    */
   async checkSolscan() {
     const hasKey = !!config.apiKeys.solscan;
+    
+    logger.info('Checking Solscan API', { 
+      hasKey,
+      keyPrefix: config.apiKeys.solscan ? config.apiKeys.solscan.substring(0, 15) + '...' : 'none'
+    });
 
     if (!hasKey) {
+      logger.warn('Solscan API key not found in config');
       return {
         name: 'Solscan',
         status: 'not_configured',
@@ -155,22 +188,26 @@ class APIStatusChecker {
         chain: 'solana',
         critical: false,
         note: 'Optional - Currently using public Solana RPC for transaction data',
-        recommendation: 'Add SOLSCAN_API_KEY for better Solana data'
+        recommendation: 'Add SOLSCAN_API_KEY for better Solana data',
+        debug: 'SOLSCAN_API_KEY not set in environment'
       };
     }
 
     try {
-      // Test API key
-      const response = await axios.get('https://public-api.solscan.io/account/tokens', {
+      // Test API key - Solscan V2 API endpoint
+      logger.debug('Testing Solscan API key...');
+      const response = await axios.get('https://pro-api.solscan.io/v2.0/account/balance_change', {
         params: {
-          account: 'So11111111111111111111111111111111111111112' // Wrapped SOL
+          address: 'So11111111111111111111111111111111111111112', // Wrapped SOL
+          limit: 1
         },
         headers: {
           'token': config.apiKeys.solscan
         },
-        timeout: 5000
+        timeout: 10000
       });
 
+      logger.info('Solscan API key validated successfully');
       return {
         name: 'Solscan',
         status: 'connected',
@@ -178,9 +215,16 @@ class APIStatusChecker {
         connected: true,
         chain: 'solana',
         critical: false,
-        rateLimit: '10 calls/second (with key)'
+        rateLimit: '10 calls/second (with key)',
+        tier: 'Pro'
       };
     } catch (error) {
+      logger.error('Solscan API check failed', { 
+        error: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+      
       if (error.response?.status === 401) {
         return {
           name: 'Solscan',
@@ -188,7 +232,8 @@ class APIStatusChecker {
           hasApiKey: true,
           connected: false,
           chain: 'solana',
-          error: 'Invalid API key'
+          error: 'Invalid API key',
+          debug: 'HTTP 401: Unauthorized - Check if API key is correct'
         };
       }
 
@@ -198,7 +243,8 @@ class APIStatusChecker {
         hasApiKey: true,
         connected: false,
         chain: 'solana',
-        error: error.message
+        error: error.message,
+        debug: `HTTP ${error.response?.status || 'timeout'}: ${error.response?.data?.message || error.message}`
       };
     }
   }
@@ -284,6 +330,11 @@ class APIStatusChecker {
    */
   async checkCoinGecko() {
     const hasKey = !!config.apiKeys.coingecko;
+    
+    logger.info('Checking CoinGecko API', { 
+      hasKey,
+      keyPrefix: config.apiKeys.coingecko ? config.apiKeys.coingecko.substring(0, 10) + '...' : 'none'
+    });
 
     try {
       const url = hasKey
@@ -292,11 +343,13 @@ class APIStatusChecker {
 
       const params = hasKey ? { x_cg_pro_api_key: config.apiKeys.coingecko } : {};
 
+      logger.debug(`Testing CoinGecko API (${hasKey ? 'Pro' : 'Free'})...`);
       const response = await axios.get(url, {
         params,
-        timeout: 5000
+        timeout: 10000
       });
 
+      logger.info('CoinGecko API validated successfully', { tier: hasKey ? 'Pro' : 'Free' });
       return {
         name: 'CoinGecko',
         status: 'connected',
@@ -308,12 +361,19 @@ class APIStatusChecker {
         note: 'Provides price data for major tokens'
       };
     } catch (error) {
+      logger.error('CoinGecko API check failed', { 
+        error: error.message,
+        status: error.response?.status,
+        tier: hasKey ? 'Pro' : 'Free'
+      });
+      
       return {
         name: 'CoinGecko',
         status: 'error',
         hasApiKey: hasKey,
         connected: false,
-        error: error.message
+        error: error.message,
+        debug: `${hasKey ? 'Pro API' : 'Free API'} - HTTP ${error.response?.status || 'timeout'}: ${error.message}`
       };
     }
   }

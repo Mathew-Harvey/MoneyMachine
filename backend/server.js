@@ -512,6 +512,50 @@ app.get('/api/wallets/activity', async (req, res) => {
   }
 });
 
+// API Keys Debug - Check if environment variables are loaded (NEW)
+// MUST come before other routes to avoid being caught by wildcards
+app.get('/api/debug/env', async (req, res) => {
+  try {
+    const keys = {
+      etherscan: {
+        exists: !!config.apiKeys.etherscan,
+        prefix: config.apiKeys.etherscan ? config.apiKeys.etherscan.substring(0, 10) + '...' : 'NOT SET',
+        source: process.env.ETHERSCAN_API_KEY ? 'env' : 'default'
+      },
+      solscan: {
+        exists: !!config.apiKeys.solscan,
+        prefix: config.apiKeys.solscan ? config.apiKeys.solscan.substring(0, 15) + '...' : 'NOT SET',
+        source: process.env.SOLSCAN_API_KEY ? 'env' : 'default'
+      },
+      coingecko: {
+        exists: !!config.apiKeys.coingecko,
+        prefix: config.apiKeys.coingecko ? config.apiKeys.coingecko.substring(0, 10) + '...' : 'NOT SET',
+        source: process.env.COINGECKO_API_KEY ? 'env' : 'default'
+      },
+      helius: {
+        exists: !!config.apiKeys.helius,
+        prefix: config.apiKeys.helius ? config.apiKeys.helius.substring(0, 15) + '...' : 'NOT SET',
+        source: process.env.HELIUS_API_KEY ? 'env' : 'default'
+      },
+      quicknode: {
+        exists: !!config.apiKeys.quicknode,
+        prefix: config.apiKeys.quicknode ? config.apiKeys.quicknode.substring(0, 15) + '...' : 'NOT SET',
+        source: process.env.QUICKNODE_API_KEY ? 'env' : 'default'
+      }
+    };
+    
+    res.json({
+      note: 'This shows if API keys are loaded from .env file',
+      keys,
+      nodeEnv: process.env.NODE_ENV,
+      port: process.env.PORT,
+      mockMode: process.env.MOCK_MODE
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // API Connections Status - COMPREHENSIVE (NEW)
 app.get('/api/connections/status', async (req, res) => {
   try {
@@ -519,8 +563,8 @@ app.get('/api/connections/status', async (req, res) => {
     const status = await apiStatusChecker.getAllStatus();
     res.json(status);
   } catch (error) {
-    logger.error('Error checking API connections', { error: error.message });
-    res.status(500).json({ error: error.message });
+    logger.error('Error checking API connections', { error: error.message, stack: error.stack });
+    res.status(500).json({ error: error.message, stack: error.stack });
   }
 });
 
