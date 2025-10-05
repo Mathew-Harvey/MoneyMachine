@@ -2,8 +2,8 @@
 
 // Auto-detect API base URL - works on both desktop and mobile
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  ? 'http://localhost:3005/api'  // Desktop development
-  : `http://${window.location.hostname}:3005/api`;  // Mobile on same network
+  ? 'http://localhost:3000/api'  // Desktop development
+  : `http://${window.location.hostname}:3000/api`;  // Mobile on same network
 
 // State
 let dashboardData = null;
@@ -1069,12 +1069,14 @@ function displayWalletTrades(trades) {
 // Load system status
 async function loadSystemStatus() {
     try {
-        const response = await fetch(`${API_BASE}/system/status`);
-        const status = await response.json();
+        const [status, apiConnections] = await Promise.all([
+            fetch(`${API_BASE}/system/status`).then(r => r.json()),
+            fetch(`${API_BASE}/connections/status`).then(r => r.json())
+        ]);
         
         renderComponentHealth(status.components);
         renderSystemMetrics(status);
-        renderAPIStatus(status.apiStatus);
+        renderAPIStatus(apiConnections, status.apiStatus);
         renderBackgroundJobs(status.jobs);
         renderSystemLogs(status);
         
@@ -1181,37 +1183,122 @@ function renderSystemMetrics(status) {
     container.innerHTML = html;
 }
 
-// Render API status
-function renderAPIStatus(apiStatus) {
+// Render API status - COMPREHENSIVE
+function renderAPIStatus(apiConnections, legacyStatus) {
     const container = document.getElementById('api-status');
     
-    const html = `
-        <div class="api-item ${apiStatus.etherscan ? 'connected' : 'disconnected'}">
-            <div class="api-indicator"></div>
-            <div class="api-info">
-                <div class="api-name">Etherscan API</div>
-                <div class="api-status">${apiStatus.etherscan ? 'Connected ✅' : 'Not Configured ⚠️'}</div>
+    if (!apiConnections) {
+        // Fallback to legacy view
+        container.innerHTML = `
+            <div class="api-item ${legacyStatus?.etherscan ? 'connected' : 'disconnected'}">
+                <div class="api-indicator"></div>
+                <div class="api-info">
+                    <div class="api-name">Etherscan API</div>
+                    <div class="api-status">${legacyStatus?.etherscan ? 'Connected ✅' : 'Not Configured ⚠️'}</div>
+                </div>
             </div>
-        </div>
-        
-        <div class="api-item ${apiStatus.coingecko ? 'connected' : 'disconnected'}">
-            <div class="api-indicator"></div>
-            <div class="api-info">
-                <div class="api-name">CoinGecko API</div>
-                <div class="api-status">${apiStatus.coingecko ? 'Connected ✅' : 'Not Configured ⚠️'}</div>
-            </div>
-        </div>
-        
-        <div class="api-item ${apiStatus.mockMode ? 'mock' : 'production'}">
-            <div class="api-indicator"></div>
-            <div class="api-info">
-                <div class="api-name">Operating Mode</div>
-                <div class="api-status">${apiStatus.mockMode ? '🧪 Mock Mode' : '🚀 Production Mode'}</div>
-            </div>
-        </div>
-    `;
+        `;
+        return;
+    }
+
+    const items = [];
     
-    container.innerHTML = html;
+    // Critical Services (show first)
+    const criticalServices = [
+        { 
+            name: 'Etherscan API', 
+            data: apiConnections.blockchainExplorers?.etherscan,
+            icon: '🔗'
+        },
+        { 
+            name: 'DexScreener', 
+            data: apiConnections.priceOracles?.dexscreener,
+            icon: '💱'
+        }
+    ];
+    
+    // Premium Services
+    const premiumServices = [
+        { 
+            name: 'Helius', 
+            data: apiConnections.premiumServices?.helius,
+            icon: '⚡'
+        },
+        { 
+            name: 'QuickNode', 
+            data: apiConnections.premiumServices?.quicknode,
+            icon: '🚀'
+        },
+        { 
+            name: 'Solscan', 
+            data: apiConnections.blockchainExplorers?.solscan,
+            icon: '🌐'
+        },
+        { 
+            name: 'CoinGecko', 
+            data: apiConnections.priceOracles?.coingecko,
+            icon: '💰'
+        }
+    ];
+    
+    // Render critical services
+    criticalServices.forEach(service => {
+        if (service.data) {
+            const isConnected = service.data.connected || service.data.status === 'connected';
+            const isCritical = service.data.critical;
+            const statusClass = isConnected ? 'connected' : (isCritical ? 'error' : 'disconnected');
+            const statusText = isConnected 
+                ? `Connected ${service.data.hasApiKey ? '🔑' : ''}` 
+                : (isCritical ? 'REQUIRED ⚠️' : 'Not Configured');
+            
+            items.push(`
+                <div class="api-item ${statusClass}">
+                    <div class="api-indicator"></div>
+                    <div class="api-info">
+                        <div class="api-name">${service.icon} ${service.name}</div>
+                        <div class="api-status">${statusText}</div>
+                        ${service.data.tier ? `<div class="api-detail">${service.data.tier}</div>` : ''}
+                    </div>
+                </div>
+            `);
+        }
+    });
+    
+    // Render premium services (only if configured)
+    premiumServices.forEach(service => {
+        if (service.data && (service.data.connected || service.data.hasApiKey || service.data.status === 'configured')) {
+            const isConnected = service.data.connected || service.data.status === 'connected' || service.data.status === 'configured';
+            const statusClass = isConnected ? 'connected' : 'disconnected';
+            const statusText = isConnected 
+                ? `Connected ${service.data.hasApiKey ? '🔑' : '✅'}` 
+                : 'Not Configured';
+            
+            items.push(`
+                <div class="api-item ${statusClass}">
+                    <div class="api-indicator"></div>
+                    <div class="api-info">
+                        <div class="api-name">${service.icon} ${service.name}</div>
+                        <div class="api-status">${statusText}</div>
+                        ${service.data.tier ? `<div class="api-detail">${service.data.tier}</div>` : ''}
+                    </div>
+                </div>
+            `);
+        }
+    });
+    
+    // Operating Mode
+    const mockMode = legacyStatus?.mockMode || false;
+    items.push(`
+        <div class="api-item ${mockMode ? 'mock' : 'production'}">
+            <div class="api-indicator"></div>
+            <div class="api-info">
+                <div class="api-name">🔧 Operating Mode</div>
+                <div class="api-status">${mockMode ? '🧪 Mock Mode' : '🚀 Production Mode'}</div>
+            </div>
+        </div>
+    `);
+    
+    container.innerHTML = items.join('');
 }
 
 // Render background jobs
