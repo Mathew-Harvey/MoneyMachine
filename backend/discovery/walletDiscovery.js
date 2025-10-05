@@ -7,8 +7,8 @@ const ClusterAnalysis = require('./clusterAnalysis');
  * Automatically discovers new profitable wallets
  * 
  * Discovery Strategy:
- * 1. Find tokens that pumped >5x in last 7 days
- * 2. Identify wallets that bought early (bottom 20% of price range)
+ * 1. Find tokens that pumped >2x in last 14 days
+ * 2. Identify wallets that bought early (bottom 30% of price range)
  * 3. Analyze wallet history for consistent profitability
  * 4. Score and rank discovered wallets
  * 5. Add top performers to discovery pool
@@ -122,7 +122,7 @@ class WalletDiscovery {
       return tokens;
     } catch (error) {
       console.error('Error finding pumping tokens:', error.message);
-      return []; // Return empty array instead of mock data
+      return [];
     }
   }
 
@@ -150,9 +150,8 @@ class WalletDiscovery {
           GROUP BY wallet_address
         `, [token.address, token.chain]);
         
-        // Filter for wallets that bought in bottom 20% of price range
+        // Filter for wallets that bought in bottom 30% of price range
         for (const tx of transactions) {
-          const priceRange = token.max_price_usd - (token.current_price_usd * 0.1); // Approximate initial price
           const entryPoint = (tx.entry_price) / token.max_price_usd;
           
           if (entryPoint <= config.discovery.earlyBuyThreshold) {
@@ -313,140 +312,6 @@ class WalletDiscovery {
       biggestLoss
     };
   }
-
 }
 
 module.exports = WalletDiscovery;
-
-/**
- * REMOVED: Mock mode functions - production only
- */
-/*
-  generateMockPumpingTokens() {
-    const tokens = [];
-    const chains = ['ethereum', 'solana', 'base', 'arbitrum'];
-    const symbols = ['PUMP', 'MOON', 'GEM', 'ALPHA', 'CHAD', 'DEGEN'];
-    
-    for (let i = 0; i < 10; i++) {
-      tokens.push({
-        address: '0x' + Array(40).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join(''),
-        chain: chains[Math.floor(Math.random() * chains.length)],
-        symbol: symbols[Math.floor(Math.random() * symbols.length)] + i,
-        current_price_usd: Math.random() * 0.01,
-        max_price_usd: Math.random() * 0.1,
-        pump_multiple: 5 + Math.random() * 20
-      });
-    }
-    
-    return tokens;
-  }
-
-  /**
-   * Generate mock early buyers for testing
-   * In mock mode, we'll "discover" variations of existing wallets with good metrics
-   */
-  async generateMockEarlyBuyers() {
-    const buyers = [];
-    
-    // In mock mode, generate some wallet candidates based on existing patterns
-    // but with new addresses (simulating discovery of similar successful wallets)
-    const chains = ['ethereum', 'solana', 'base', 'arbitrum'];
-    
-    // Generate fewer but more "realistic" candidates
-    for (let i = 0; i < 5; i++) {
-      const chain = chains[Math.floor(Math.random() * chains.length)];
-      const address = chain === 'solana'
-        ? Array(44).fill(0).map(() => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[
-            Math.floor(Math.random() * 62)
-          ]).join('')
-        : '0x' + Array(40).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('');
-      
-      // Create mock transaction history for this wallet
-      await this.createMockWalletHistory(address, chain);
-      
-      buyers.push({
-        address,
-        chain,
-        token: 'DISCOVERED' + i,
-        entryPoint: Math.random() * 0.2,
-        discoveryMethod: 'mock_simulation'
-      });
-    }
-    
-    return buyers;
-  }
-
-  /**
-   * Create mock transaction history for a discovered wallet
-   * Ensures wallet meets minimum profitability requirements
-   */
-  async createMockWalletHistory(address, chain) {
-    // Generate 25-35 mock transactions for this wallet (above minimum)
-    const txCount = 25 + Math.floor(Math.random() * 11);
-    const winRate = 0.65 + Math.random() * 0.15; // 65-80% win rate
-    
-    let totalProfit = 0;
-    const targetProfit = config.discovery.minProfitability * (1 + Math.random()); // $5k-10k
-    
-    for (let i = 0; i < txCount; i++) {
-      const tokenAddress = '0x' + Array(40).fill(0).map(() => 
-        Math.floor(Math.random() * 16).toString(16)
-      ).join('');
-      
-      const isWin = Math.random() < winRate;
-      
-      // Calculate trade size to reach target profit
-      const baseTradeSize = 500 + Math.random() * 1500; // $500-$2000 per trade
-      const buyValue = baseTradeSize;
-      
-      // For wins, aim for 20-100% profit, for losses 10-30% loss
-      const profitMultiplier = isWin 
-        ? (1.2 + Math.random() * 0.8)  // 20-100% gain
-        : (0.7 + Math.random() * 0.2); // 10-30% loss
-      
-      const sellValue = buyValue * profitMultiplier;
-      const tradeProfit = sellValue - buyValue;
-      totalProfit += tradeProfit;
-      
-      // Create buy transaction
-      await this.db.addTransaction({
-        wallet_address: address,
-        chain,
-        tx_hash: '0x' + Array(64).fill(0).map(() => 
-          Math.floor(Math.random() * 16).toString(16)
-        ).join(''),
-        token_address: tokenAddress,
-        token_symbol: 'DISC' + i,
-        action: 'buy',
-        amount: 1000,
-        price_usd: buyValue / 1000,
-        total_value_usd: buyValue,
-        timestamp: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
-        block_number: 1000000 + Math.floor(Math.random() * 100000)
-      });
-      
-      // Create corresponding sell transaction
-      await this.db.addTransaction({
-        wallet_address: address,
-        chain,
-        tx_hash: '0x' + Array(64).fill(0).map(() => 
-          Math.floor(Math.random() * 16).toString(16)
-        ).join(''),
-        token_address: tokenAddress,
-        token_symbol: 'DISC' + i,
-        action: 'sell',
-        amount: 1000,
-        price_usd: sellValue / 1000,
-        total_value_usd: sellValue,
-        timestamp: new Date(Date.now() - Math.random() * 25 * 24 * 60 * 60 * 1000).toISOString(),
-        block_number: 1000000 + Math.floor(Math.random() * 100000)
-      });
-    }
-    
-    console.log(`    💰 Created wallet with ${txCount} trades, ${(winRate * 100).toFixed(0)}% WR, $${totalProfit.toFixed(0)} profit`);
-  }
-}
-
-module.exports = WalletDiscovery;
-
-
