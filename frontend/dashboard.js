@@ -2,8 +2,8 @@
 
 // Auto-detect API base URL - works on both desktop and mobile
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  ? 'http://localhost:3000/api'  // Desktop development
-  : `http://${window.location.hostname}:3000/api`;  // Mobile on same network
+  ? 'http://localhost:3005/api'  // Desktop development (server runs on 3005)
+  : `http://${window.location.hostname}:3005/api`;  // Mobile on same network
 
 // State
 let dashboardData = null;

@@ -26,9 +26,16 @@ class APIStatusChecker {
    * Get comprehensive API status
    */
   async getAllStatus() {
+    const now = Date.now();
+    
     // Return cached result if recent
-    if (this.cache.all && (Date.now() - this.lastCheck) < this.cacheTimeout) {
+    if (this.cache.all && (now - this.lastCheck) < this.cacheTimeout) {
       return this.cache.all;
+    }
+
+    // Clean old cache before setting new (prevent memory leak)
+    if (now - this.lastCheck > this.cacheTimeout) {
+      this.cache = {}; // Clear old cache
     }
 
     const results = {
@@ -41,7 +48,7 @@ class APIStatusChecker {
     };
 
     this.cache.all = results;
-    this.lastCheck = Date.now();
+    this.lastCheck = now;
     return results;
   }
 

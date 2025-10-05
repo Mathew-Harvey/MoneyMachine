@@ -159,9 +159,21 @@ function startBackgroundJobs() {
   const performanceInterval = process.env.PERFORMANCE_UPDATE_INTERVAL || 15;
   const positionInterval = process.env.POSITION_MANAGEMENT_INTERVAL || 2;  // Faster position checks
   
+  // Mutex locks to prevent overlapping jobs
+  let trackingRunning = false;
+  let discoveryRunning = false;
+  let performanceRunning = false;
+  let positionManagementRunning = false;
+  
   // Track wallets
   cron.schedule(`*/${trackingInterval} * * * *`, async () => {
+    if (trackingRunning) {
+      logger.warn('CRON: Wallet tracking already running, skipping this cycle');
+      return;
+    }
+    
     if (isInitialized && universalTracker && paperTradingEngine) {
+      trackingRunning = true;
       try {
         logger.info('CRON: Running wallet tracking');
         await db.setSystemState('last_tracking_cycle', new Date().toISOString());
@@ -179,6 +191,8 @@ function startBackgroundJobs() {
         }
       } catch (error) {
         logger.error('CRON: Wallet tracking failed', { error: error.message });
+      } finally {
+        trackingRunning = false;
       }
     }
   });
@@ -186,12 +200,20 @@ function startBackgroundJobs() {
   // Discover new wallets
   if (config.discovery.enabled) {
     cron.schedule(`0 */${discoveryInterval} * * *`, async () => {
+      if (discoveryRunning) {
+        logger.warn('CRON: Wallet discovery already running, skipping this cycle');
+        return;
+      }
+      
       if (isInitialized && walletDiscovery) {
+        discoveryRunning = true;
         try {
           logger.info('CRON: Running wallet discovery');
           await walletDiscovery.discoverNewWallets();
         } catch (error) {
           logger.error('CRON: Wallet discovery failed', { error: error.message });
+        } finally {
+          discoveryRunning = false;
         }
       }
     });
@@ -199,29 +221,45 @@ function startBackgroundJobs() {
   
   // Update performance metrics
   cron.schedule(`*/${performanceInterval} * * * *`, async () => {
+    if (performanceRunning) {
+      logger.warn('CRON: Performance update already running, skipping this cycle');
+      return;
+    }
+    
     if (isInitialized && performanceTracker) {
+      performanceRunning = true;
       try {
         logger.debug('CRON: Updating performance metrics');
         await performanceTracker.updateAllMetrics();
       } catch (error) {
         logger.error('CRON: Performance update failed', { error: error.message });
+      } finally {
+        performanceRunning = false;
       }
     }
   });
   
   // Manage open positions
   cron.schedule(`*/${positionInterval} * * * *`, async () => {
+    if (positionManagementRunning) {
+      logger.warn('CRON: Position management already running, skipping this cycle');
+      return;
+    }
+    
     if (isInitialized && paperTradingEngine) {
+      positionManagementRunning = true;
       try {
         await db.setSystemState('last_position_check', new Date().toISOString());
         await paperTradingEngine.managePositions();
       } catch (error) {
         logger.error('CRON: Position management failed', { error: error.message });
+      } finally {
+        positionManagementRunning = false;
       }
     }
   });
   
-  logger.info('Background jobs started', {
+  logger.info('Background jobs started with mutex locks', {
     tracking: `Every ${trackingInterval} minutes`,
     discovery: `Every ${discoveryInterval} hours`,
     performance: `Every ${performanceInterval} minutes`,
@@ -250,7 +288,7 @@ app.get('/api/dashboard', async (req, res) => {
     const performance = await db.getOverallPerformance();
     const topWallets = await db.getTopPerformingWallets(5);
     const recentTrades = await db.getRecentTransactions(10);
-    const openTrades = await db.getOpenTrades();
+    const allOpenTrades = await db.getOpenTrades();
     const discoveredWallets = await db.getDiscoveredWallets(false);
     
     // Calculate strategy breakdown - ALL STRATEGIES (including open trades)
@@ -265,7 +303,7 @@ app.get('/api/dashboard', async (req, res) => {
       );
       
       const closedTrades = allTrades.filter(t => t.status === 'closed');
-      const openTrades = allTrades.filter(t => t.status === 'open');
+      const strategyOpenTrades = allTrades.filter(t => t.status === 'open');
       
       // Calculate realized P&L from closed trades
       const realizedPnl = closedTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
@@ -273,7 +311,7 @@ app.get('/api/dashboard', async (req, res) => {
       
       strategyBreakdown[strategy] = {
         trades: allTrades.length,  // Total trades (open + closed)
-        openTrades: openTrades.length,
+        openTrades: strategyOpenTrades.length,
         closedTrades: closedTrades.length,
         wins,
         losses: closedTrades.length - wins,
@@ -286,7 +324,7 @@ app.get('/api/dashboard', async (req, res) => {
       performance,
       topWallets,
       recentTrades,
-      openTrades,
+      openTrades: allOpenTrades,
       discoveredWallets: discoveredWallets.slice(0, 5),
       strategyBreakdown
     });

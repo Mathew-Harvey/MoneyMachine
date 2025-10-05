@@ -57,9 +57,30 @@ class WalletDiscovery {
       const analyzedWallets = await this.analyzeWallets(earlyBuyers);
       console.log(`  ✓ Analyzed ${analyzedWallets.length} wallets`);
       
-      // Step 4: Score and rank wallets
-      const scoredWallets = await this.scorer.scoreWallets(analyzedWallets);
-      console.log(`  ✓ Scored ${scoredWallets.length} wallets`);
+      // Step 4: Score and rank wallets (with error handling)
+      let scoredWallets = [];
+      try {
+        if (this.scorer) {
+          scoredWallets = await this.scorer.scoreWallets(analyzedWallets);
+          console.log(`  ✓ Scored ${scoredWallets.length} wallets`);
+        } else {
+          console.warn('  ⚠️  Scorer not initialized, using default scores');
+          scoredWallets = analyzedWallets.map(w => ({ 
+            ...w, 
+            score: Math.min(w.winRate * 100, 100),  // Use winRate as score
+            breakdown: { note: 'Default scoring (scorer unavailable)' }
+          }));
+        }
+      } catch (error) {
+        console.error('  ❌ Scoring failed:', error.message);
+        console.log('  ⚠️  Using fallback scoring method');
+        // Fallback: use winRate as score
+        scoredWallets = analyzedWallets.map(w => ({ 
+          ...w, 
+          score: Math.min(w.winRate * 100, 100),
+          breakdown: { note: `Fallback scoring (error: ${error.message})` }
+        }));
+      }
       
       // Step 5: Select top performers
       const topWallets = scoredWallets
