@@ -332,7 +332,9 @@ function updatePositions() {
         const elapsed = Date.now() - new Date(position.entry_time).getTime();
         const volatility = position.strategy_used === 'memecoin' ? 0.3 : 0.1;
         const priceChange = (Math.random() - 0.4) * volatility;
-        const currentPrice = position.entry_price * (1 + priceChange + (elapsed / 1000000));
+        // Add small time-based drift (max 5% per day)
+        const timeDrift = Math.min(elapsed / (1000 * 60 * 60 * 24), 1) * 0.05;
+        const currentPrice = position.entry_price * (1 + priceChange + timeDrift);
         
         const pnl = (currentPrice - position.entry_price) * position.amount;
         const pnlPercent = ((currentPrice - position.entry_price) / position.entry_price) * 100;
@@ -363,11 +365,11 @@ function updatePositions() {
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">Entry</div>
-                        <div class="detail-value">$${position.entry_price.toFixed(6)}</div>
+                        <div class="detail-value">${formatPrice(position.entry_price)}</div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">Current</div>
-                        <div class="detail-value">$${currentPrice.toFixed(6)}</div>
+                        <div class="detail-value">${formatPrice(currentPrice)}</div>
                     </div>
                 </div>
             </div>
@@ -559,6 +561,22 @@ function formatMoney(amount) {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     }).format(amount);
+}
+
+function formatPrice(price) {
+    // Format token prices intelligently based on magnitude
+    if (price >= 1000) {
+        return '$' + price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    } else if (price >= 1) {
+        return '$' + price.toFixed(4);
+    } else if (price >= 0.01) {
+        return '$' + price.toFixed(6);
+    } else if (price >= 0.000001) {
+        return '$' + price.toFixed(8);
+    } else {
+        // For very small prices, use scientific notation
+        return '$' + price.toExponential(4);
+    }
 }
 
 function formatAddress(address) {
