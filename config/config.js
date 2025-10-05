@@ -60,117 +60,121 @@ module.exports = {
     jwtSecret: process.env.JWT_SECRET || 'change-this-in-production'
   },
 
-  // Strategy parameters - PRODUCTION OPTIMIZED
+  // Strategy parameters - BALANCED PRODUCTION MODE (Unsupervised operation)
   strategies: {
     // Simple copy trading - mirror successful wallets
     copyTrade: {
       allocation: 2500,
-      maxPerTrade: 250,
-      minTradeSize: 100, // copy trades over $100
-      minWalletWinRate: 0.55, // follow wallets with 55%+ win rate
-      copyPercentage: 0.1, // copy 10% of their trade size
-      stopLoss: 0.15, // 15%
-      takeProfit: 0.50, // 50%
-      maxConcurrentTrades: 20,
-      trailingStop: 0.15
+      maxPerTrade: 200, // Reduced from 250 for safety
+      minTradeSize: 50, // Balanced: not too low, not too high
+      minWalletWinRate: 0.50, // Require 50%+ win rate (proven track record)
+      copyPercentage: 0.08, // Reduced from 0.1 to 8% for conservative sizing
+      stopLoss: 0.12, // Tighter: 12% (was 15%)
+      takeProfit: 0.40, // Earlier exit: 40% (was 50%)
+      maxConcurrentTrades: 15, // Reduced from 20 for risk control
+      trailingStop: 0.12
     },
     
     // Volume breakout - detect unusual buying activity
     volumeBreakout: {
       allocation: 2000,
-      maxPerTrade: 200,
-      volumeMultiplier: 3, // 3x normal volume
-      minBuyerCount: 3, // at least 3 different buyers
+      maxPerTrade: 150, // Reduced from 200
+      volumeMultiplier: 2.5, // Balanced: 2.5x volume (was 2x test, 3x original)
+      minBuyerCount: 3, // Back to 3 buyers for quality
       timeWindow: 7200, // 2 hours
-      stopLoss: 0.20,
-      takeProfit: 0.75,
-      maxConcurrentTrades: 15
+      stopLoss: 0.15, // Tighter: 15% (was 20%)
+      takeProfit: 0.60, // More conservative: 60% (was 75%)
+      maxConcurrentTrades: 10 // Reduced from 15
     },
     
     // Smart money - follow whales and high-value traders
     smartMoney: {
       allocation: 2000,
-      maxPerTrade: 300,
-      minTradeSize: 5000, // only copy large trades
-      minWalletBalance: 100000, // whales with $100k+
-      stopLoss: 0.10,
-      takeProfit: 0.40,
-      maxConcurrentTrades: 10,
-      trailingStop: 0.12
-    },
-    
-    // Arbitrage - RELAXED thresholds
-    arbitrage: {
-      allocation: 1500,
-      maxPerTrade: 300,
-      copyThreshold: 500, // REDUCED from 1000
-      stopLoss: 0.08,
-      takeProfit: 0.25,
-      maxConcurrentTrades: 10,
-      minWinRate: 0.55, // REDUCED from 0.60
+      maxPerTrade: 250, // Reduced from 300
+      minTradeSize: 2000, // Balanced: $2k (was $1k test, $5k original)
+      minWalletBalance: 75000, // Balanced: $75k (was $50k test, $100k original)
+      stopLoss: 0.10, // Keep tight
+      takeProfit: 0.35, // Earlier exit: 35% (was 40%)
+      maxConcurrentTrades: 8, // Reduced from 10
       trailingStop: 0.10
     },
     
-    // Memecoin - RELAXED coordination requirement
-    memecoin: {
+    // Arbitrage - BALANCED thresholds for production
+    arbitrage: {
       allocation: 1500,
-      maxPerTrade: 150,
-      copyThreshold: 1, // REDUCED from 2 - copy even single buys
-      copyTimeWindow: 7200, // INCREASED to 2 hours
-      stopLoss: 0.50,
-      takeProfit: [
-        { at: 2, sell: 0.5 },
-        { at: 10, sell: 0.3 },
-        { at: 100, sell: 0.2 }
-      ],
-      maxHoldTime: 72,
-      maxConcurrentTrades: 20,
-      minWinRate: 0.35 // REDUCED from 0.40
+      maxPerTrade: 200, // Reduced from 300
+      copyThreshold: 250, // Balanced: $250 (was $100 test, $500 original)
+      stopLoss: 0.08, // Keep tight for arb
+      takeProfit: 0.20, // Quick exits: 20% (was 25%)
+      maxConcurrentTrades: 8, // Reduced from 10
+      minWinRate: 0.50, // Require 50%+ (was 40% test, 55% original)
+      trailingStop: 0.08
     },
     
-    // Early gem - RELAXED requirements
+    // Memecoin - CONSERVATIVE (highest risk strategy)
+    memecoin: {
+      allocation: 1000, // REDUCED from 1500 (riskiest strategy)
+      maxPerTrade: 100, // Reduced from 150
+      copyThreshold: 2, // Require 2 coordinated buys (was 1)
+      copyTimeWindow: 3600, // Reduced to 1 hour (was 2 hours)
+      stopLoss: 0.40, // Tighter: 40% (was 50%)
+      takeProfit: [
+        { at: 2, sell: 0.6 },   // Take more profit earlier
+        { at: 5, sell: 0.3 },   // Added middle tier
+        { at: 10, sell: 0.1 }   // Keep less for moonshots
+      ],
+      maxHoldTime: 48, // Reduced from 72 hours
+      maxConcurrentTrades: 12, // Reduced from 20
+      minWinRate: 0.35 // Require 35%+ (was 25%)
+    },
+    
+    // Early gem - CONSERVATIVE requirements
     earlyGem: {
       allocation: 500,
-      maxPerTrade: 100,
-      tokenAgeLimit: 72, // INCREASED from 24 hours
-      stopLoss: 0.30,
-      takeProfit: 3,
-      onlyFollowWalletsWithWinRate: 0.60, // REDUCED from 0.70
-      maxConcurrentTrades: 10,
-      minLiquidity: 25000 // REDUCED from 50000
+      maxPerTrade: 75, // Reduced from 100
+      tokenAgeLimit: 120, // Reduced from 168 to 5 days (fresher focus)
+      stopLoss: 0.25, // Tighter: 25% (was 30%)
+      takeProfit: 2.5, // More realistic: 2.5x (was 3x)
+      onlyFollowWalletsWithWinRate: 0.50, // Require 50%+ (was 40%)
+      maxConcurrentTrades: 6, // Reduced from 10
+      minLiquidity: 20000 // Balanced: $20k (was $10k test, $25k original)
     }
   },
 
-  // Wallet discovery parameters - AGGRESSIVE for production
+  // Wallet discovery parameters - BALANCED for production
   discovery: {
     enabled: process.env.DISCOVERY_ENABLED !== 'false',
     runInterval: 21600000, // run every 6 hours
-    dailyLimit: parseInt(process.env.DISCOVERY_DAILY_LIMIT) || 25, // INCREASED for more discoveries
-    minTradeCount: 10, // REDUCED - less history required
-    minWinRate: 0.52, // REDUCED - 52% is still profitable
+    dailyLimit: parseInt(process.env.DISCOVERY_DAILY_LIMIT) || 15, // Conservative: 15/day (was 25)
+    minTradeCount: 15, // Require more history: 15 trades (was 10)
+    minWinRate: 0.55, // Higher standard: 55% (was 52%)
     lookbackDays: 30,
-    minProfitability: 2000, // REDUCED to $2k
-    pumpThreshold: 2, // REDUCED to 2x (catches more opportunities)
-    pumpTimeframe: 14, // INCREASED to 14 days (longer window)
-    earlyBuyThreshold: 0.30 // INCREASED to bottom 30%
+    minProfitability: 3000, // Higher bar: $3k (was $2k)
+    pumpThreshold: 2.5, // Balanced: 2.5x (was 2x)
+    pumpTimeframe: 10, // Reduced to 10 days (was 14)
+    earlyBuyThreshold: 0.25 // More selective: bottom 25% (was 30%)
   },
 
-  // Risk management
+  // Risk management - ACTIVE PROTECTION for unsupervised operation
   risk: {
-    maxDrawdown: 0.30, // pause trading if down 30%
-    maxDailyLoss: 0.05, // pause if lose 5% in one day
-    maxPositionSize: 0.15, // no position larger than 15% of capital
-    correlationLimit: 0.30, // max 30% in correlated assets
+    maxDrawdown: 0.20, // TIGHTER: pause trading if down 20% (was 30%)
+    maxDailyLoss: 0.03, // TIGHTER: pause if lose 3% in one day (was 5%)
+    maxWeeklyLoss: 0.08, // NEW: pause if lose 8% in one week
+    maxPositionSize: 0.12, // TIGHTER: no position larger than 12% (was 15%)
+    correlationLimit: 0.25, // TIGHTER: max 25% in correlated assets (was 30%)
+    maxOpenPositions: 40, // NEW: hard cap on total open positions
     emergencyStop: false // manual kill switch
   },
 
-  // Performance tracking
+  // Performance tracking - AGGRESSIVE for unsupervised operation
   performance: {
     updateInterval: 60000, // update metrics every minute
     edgeDetectionPeriod: 14, // days to analyze for edge detection
-    performanceThreshold: -0.15, // pause wallet if down 15% over period
-    promotionThreshold: 5, // successful trades before promotion
-    demotionThreshold: 10 // consecutive losses to demote wallet
+    performanceThreshold: -0.12, // TIGHTER: pause wallet if down 12% (was 15%)
+    promotionThreshold: 8, // More conservative: 8 successful trades (was 5)
+    demotionThreshold: 5, // FASTER: 5 consecutive losses to demote (was 10)
+    autoPauseEnabled: true, // NEW: automatically pause underperforming strategies
+    autoPauseThreshold: -0.15 // Pause strategy if down 15%
   },
 
   // Cluster analysis

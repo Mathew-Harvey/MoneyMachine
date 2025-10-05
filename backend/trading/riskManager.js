@@ -36,15 +36,27 @@ class RiskManager {
     const dailyLossCheck = await this.checkDailyLoss();
     checks.push(dailyLossCheck);
 
-    // 4. Correlation check
+    // 4. Weekly loss limit check (NEW for unsupervised)
+    if (this.config.maxWeeklyLoss) {
+      const weeklyLossCheck = await this.checkWeeklyLoss();
+      checks.push(weeklyLossCheck);
+    }
+
+    // 5. Maximum open positions check (NEW for unsupervised)
+    if (this.config.maxOpenPositions) {
+      const openPositionsCheck = await this.checkMaxOpenPositions();
+      checks.push(openPositionsCheck);
+    }
+
+    // 6. Correlation check
     const correlationCheck = await this.checkCorrelation(transaction);
     checks.push(correlationCheck);
 
-    // 5. Emergency stop check
+    // 7. Emergency stop check
     const emergencyCheck = this.checkEmergencyStop();
     checks.push(emergencyCheck);
 
-    // 6. Available capital check
+    // 8. Available capital check
     const capitalCheck = await this.checkAvailableCapital(evaluation.positionSize);
     checks.push(capitalCheck);
 
@@ -301,6 +313,53 @@ class RiskManager {
       openPositions: openTrades.length,
       drawdown: (performance.totalCapital - performance.currentCapital) / performance.totalCapital,
       emergencyStop: this.config.emergencyStop
+    };
+  }
+
+  /**
+   * Check weekly loss limit (NEW for unsupervised operation)
+   */
+  async checkWeeklyLoss() {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const weekStart = oneWeekAgo.toISOString().split('T')[0];
+    
+    const weeklyTrades = await this.db.query(`
+      SELECT SUM(pnl) as weekly_pnl
+      FROM paper_trades
+      WHERE DATE(entry_time) >= ? AND status = 'closed'
+    `, [weekStart]);
+    
+    const weeklyPnl = weeklyTrades[0]?.weekly_pnl || 0;
+    const totalCapital = parseFloat(await this.db.getSystemState('total_capital')) || 10000;
+    const weeklyLossRatio = Math.abs(Math.min(0, weeklyPnl)) / totalCapital;
+    
+    return {
+      name: 'Weekly Loss Limit',
+      passed: weeklyLossRatio <= this.config.maxWeeklyLoss,
+      reason: weeklyLossRatio > this.config.maxWeeklyLoss
+        ? `Weekly loss ${(weeklyLossRatio * 100).toFixed(1)}% exceeds maximum ${(this.config.maxWeeklyLoss * 100)}%`
+        : 'Weekly loss within acceptable range',
+      value: weeklyLossRatio,
+      limit: this.config.maxWeeklyLoss
+    };
+  }
+
+  /**
+   * Check maximum open positions (NEW for unsupervised operation)
+   */
+  async checkMaxOpenPositions() {
+    const openTrades = await this.db.getOpenTrades();
+    const currentOpenPositions = openTrades.length;
+    
+    return {
+      name: 'Maximum Open Positions',
+      passed: currentOpenPositions < this.config.maxOpenPositions,
+      reason: currentOpenPositions >= this.config.maxOpenPositions
+        ? `Already at maximum open positions: ${currentOpenPositions}/${this.config.maxOpenPositions}`
+        : 'Open position count within limits',
+      value: currentOpenPositions,
+      limit: this.config.maxOpenPositions
     };
   }
 

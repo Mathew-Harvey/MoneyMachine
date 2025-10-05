@@ -385,6 +385,94 @@ app.get('/api/discovered', promotedValidation, async (req, res) => {
   }
 });
 
+// Manual discovery trigger - NEW
+app.post('/api/discover', async (req, res) => {
+  try {
+    if (!isInitialized || !walletDiscovery) {
+      return res.status(503).json({ error: 'System not initialized' });
+    }
+    
+    logger.info('Manual discovery triggered');
+    const discoveredWallets = await walletDiscovery.discoverNewWallets();
+    
+    res.json({
+      success: true,
+      walletsDiscovered: discoveredWallets.length,
+      wallets: discoveredWallets,
+      message: `Discovery complete: Found ${discoveredWallets.length} new wallets`
+    });
+  } catch (error) {
+    logger.error('Manual discovery failed', { error: error.message });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Wallet activity analysis - NEW
+app.get('/api/wallets/activity', async (req, res) => {
+  try {
+    // Get all active wallets
+    const wallets = await db.getWallets(null, 'active');
+    
+    // Get activity stats for each wallet
+    const activityStats = await Promise.all(
+      wallets.map(async (wallet) => {
+        const transactions = await db.getWalletTransactions(wallet.address, 100);
+        const trades = await db.query(
+          'SELECT * FROM paper_trades WHERE source_wallet = ?',
+          [wallet.address]
+        );
+        
+        // Calculate recent activity (last 24 hours)
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const recentTxs = transactions.filter(tx => 
+          new Date(tx.timestamp) > oneDayAgo
+        );
+        
+        // Calculate average transaction value
+        const avgTxValue = transactions.length > 0
+          ? transactions.reduce((sum, tx) => sum + (tx.total_value_usd || 0), 0) / transactions.length
+          : 0;
+        
+        return {
+          address: wallet.address,
+          chain: wallet.chain,
+          strategy: wallet.strategy,
+          status: wallet.status,
+          winRate: wallet.win_rate,
+          totalPnl: wallet.total_pnl,
+          totalTransactions: transactions.length,
+          recentTransactions24h: recentTxs.length,
+          tradesGenerated: trades.length,
+          avgTransactionValue: avgTxValue,
+          lastActive: transactions.length > 0 
+            ? transactions[0].timestamp 
+            : wallet.created_at
+        };
+      })
+    );
+    
+    // Sort by most active (recent transactions)
+    activityStats.sort((a, b) => b.recentTransactions24h - a.recentTransactions24h);
+    
+    // Calculate summary stats
+    const summary = {
+      totalWallets: wallets.length,
+      activeToday: activityStats.filter(w => w.recentTransactions24h > 0).length,
+      totalTransactions24h: activityStats.reduce((sum, w) => sum + w.recentTransactions24h, 0),
+      totalTradesGenerated: activityStats.reduce((sum, w) => sum + w.tradesGenerated, 0),
+      avgTransactionsPerWallet: activityStats.reduce((sum, w) => sum + w.totalTransactions, 0) / wallets.length
+    };
+    
+    res.json({
+      summary,
+      wallets: activityStats
+    });
+  } catch (error) {
+    logger.error('Error fetching wallet activity', { error: error.message });
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get strategy performance
 app.get('/api/strategy/:strategy', strategyValidation, daysValidation, async (req, res) => {
   try {
